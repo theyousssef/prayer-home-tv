@@ -127,7 +127,7 @@ private fun Home06(m: HomeModel, nav: Nav, first: FocusRequester) {
             verticalArrangement = Arrangement.Center,
         ) {
             T("NEXT PRAYER", Fonts.Figtree, 18, CREAM, spacing = 0.3f)
-            Ar(n.name, Fonts.Rakkas, 108, INK, lineHeight = 1.35f, modifier = Modifier.padding(top = 14.dp))
+            Ar(n.name, Fonts.Rakkas, 108, INK, lineHeight = 1.35f, modifier = Modifier.padding(top = 14.dp), latin = Fonts.Fraunces, latinSize = 76, latinWeight = 400, latinLineHeight = 1.3f)
             T("at ${n.time}", Fonts.Figtree, 26, CREAM, modifier = Modifier.padding(bottom = 20.dp))
             CountdownGroups(n.groups, cd, Fonts.Fraunces, 80, 500, Fonts.Figtree, 15, 0.26f, sepSize = 70, gap = 10)
         }
@@ -155,7 +155,7 @@ private fun Home06(m: HomeModel, nav: Nav, first: FocusRequester) {
                 Row(Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                     T(c.date, Fonts.Figtree, 36, INK, weight = 300)
                     Spacer(Modifier.weight(1f))
-                    Ar(c.hijri.full, Fonts.NotoNaskh, 46, AMBER, weight = 600)
+                    Ar(c.hijri.full, Fonts.NotoNaskh, 46, AMBER, weight = 600, latin = Fonts.Fraunces, latinSize = 40, latinWeight = 400)
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -171,7 +171,7 @@ private fun Home06(m: HomeModel, nav: Nav, first: FocusRequester) {
                             ) {
                                 T(p.time, Fonts.Fraunces, 34, tc)
                                 Spacer(Modifier.weight(1f))
-                                Ar(p.name, Fonts.NotoNaskh, 40, nc, weight = 700)
+                                Ar(p.name, Fonts.NotoNaskh, 40, nc, weight = 700, latin = Fonts.Fraunces, latinSize = 34, latinWeight = 500)
                             }
                         }
                     }

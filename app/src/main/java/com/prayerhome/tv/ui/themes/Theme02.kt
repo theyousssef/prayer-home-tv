@@ -89,8 +89,8 @@ private fun Home02(m: HomeModel, nav: Nav, first: FocusRequester) {
                 }
                 T(c.date, Fonts.Manrope, 34, INK, weight = 300, modifier = Modifier.padding(top = 26.dp))
                 Box(Modifier.padding(top = 26.dp, bottom = 20.dp).size(120.dp, 2.dp).background(BRASS))
-                Ar("${c.hijri.weekday} ${c.hijri.day} ${c.hijri.month}", Fonts.ReemKufi, 48, BRASS, weight = 500, lineHeight = 1.4f)
-                Ar("${c.hijri.year} هـ", Fonts.ReemKufi, 48, BRASS, weight = 500, lineHeight = 1.4f)
+                Ar("${c.hijri.weekday} ${c.hijri.day} ${c.hijri.month}", Fonts.ReemKufi, 48, BRASS, weight = 500, lineHeight = 1.4f, latin = Fonts.Marcellus, latinSize = 38, latinWeight = 400)
+                Ar(c.hijri.yearLabel, Fonts.ReemKufi, 48, BRASS, weight = 500, lineHeight = 1.4f, latin = Fonts.Marcellus, latinSize = 38, latinWeight = 400)
             }
             HomeApps(
                 m, nav, first, tileW = 260, tileH = 150, gap = 20, radius = 20, columns = 2, weightTiles = true,
@@ -115,7 +115,7 @@ private fun Home02(m: HomeModel, nav: Nav, first: FocusRequester) {
                     Rosette(88, BRASS)
                     Spacer(Modifier.height(30.dp))
                     T("NEXT PRAYER", Fonts.Manrope, 20, MUTED, spacing = 0.32f)
-                    Ar(n.name, Fonts.ReemKufi, 150, INK, weight = 600, lineHeight = 1.3f)
+                    Ar(n.name, Fonts.ReemKufi, 150, INK, weight = 600, lineHeight = 1.3f, latin = Fonts.Marcellus, latinSize = 120, latinWeight = 400)
                     T("at ${n.time}", Fonts.Manrope, 30, MUTED)
                     Spacer(Modifier.height(44.dp))
                     CountdownGroups(n.groups, cd, Fonts.Marcellus, 130, 400, Fonts.Manrope, 18, 0.28f, sepSize = 110, gap = 14, labelGap = 8)
@@ -149,7 +149,7 @@ private fun Home02(m: HomeModel, nav: Nav, first: FocusRequester) {
                         val nc = if (p.isNext) (if (on) RED else BRASS) else if (p.isPast) hex(0x86A396) else INK
                         T(p.time, Fonts.Marcellus, 32, tc)
                         Spacer(Modifier.weight(1f))
-                        Ar(p.name, Fonts.ReemKufi, 36, nc, weight = 500)
+                        Ar(p.name, Fonts.ReemKufi, 36, nc, weight = 500, latin = Fonts.Marcellus, latinSize = 32, latinWeight = 400)
                     }
                 }
             }

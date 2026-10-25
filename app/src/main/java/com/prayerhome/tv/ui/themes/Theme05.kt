@@ -125,7 +125,7 @@ private fun Home05(m: HomeModel, nav: Nav, first: FocusRequester) {
                         Spacer(Modifier.width(26.dp))
                         Diamond(18, TERRA)
                         Spacer(Modifier.width(26.dp))
-                        Ar(c.hijri.full, Fonts.ElMessiri, 42, SAFFRON, weight = 600)
+                        Ar(c.hijri.full, Fonts.ElMessiri, 42, SAFFRON, weight = 600, latin = Fonts.Mulish, latinSize = 32, latinWeight = 500)
                     }
                 }
                 Column(
@@ -134,7 +134,7 @@ private fun Home05(m: HomeModel, nav: Nav, first: FocusRequester) {
                     verticalArrangement = Arrangement.Bottom,
                 ) {
                     T("NEXT PRAYER · ${n.time}", Fonts.Cinzel, 20, MUTED, spacing = 0.24f)
-                    Ar(n.name, Fonts.ElMessiri, 84, INK, weight = 700, lineHeight = 1.3f)
+                    Ar(n.name, Fonts.ElMessiri, 84, INK, weight = 700, lineHeight = 1.3f, latin = Fonts.Cinzel, latinSize = 72, latinWeight = 600)
                     CountdownGroups(n.groups, cd, Fonts.Cinzel, 80, 600, Fonts.Cinzel, 16, 0.24f, sepSize = 70, gap = 14, labelGap = 4)
                     val chip = if (n.urgent) RED else MUTED
                     Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -155,7 +155,7 @@ private fun Home05(m: HomeModel, nav: Nav, first: FocusRequester) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Bottom),
                     ) {
-                        Ar(p.name, Fonts.ElMessiri, 46, c, weight = 600, lineHeight = 1.4f)
+                        Ar(p.name, Fonts.ElMessiri, 46, c, weight = 600, lineHeight = 1.4f, latin = Fonts.Cinzel, latinSize = 34, latinWeight = 600)
                         T(p.time, Fonts.Mulish, 28, tc, weight = 500)
                     }
                 }

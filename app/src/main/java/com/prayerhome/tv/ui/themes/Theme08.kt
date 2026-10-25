@@ -125,9 +125,9 @@ private fun Home08(m: HomeModel, nav: Nav, first: FocusRequester) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Crescent(64)
                     Spacer(Modifier.width(22.dp))
-                    Ar(h.dayMonthYear, Fonts.Qahiri, 78, GOLD, lineHeight = 1.3f, digits = Fonts.ReemKufi)
+                    Ar(h.dayMonthYear, Fonts.Qahiri, 78, GOLD, lineHeight = 1.3f, digits = Fonts.ReemKufi, latin = Fonts.Josefin, latinSize = 54, latinWeight = 300, latinLineHeight = 1.4f)
                 }
-                Ar(h.weekday, Fonts.Qahiri, 44, INK)
+                Ar(h.weekday, Fonts.Qahiri, 44, INK, latin = Fonts.Josefin, latinSize = 34, latinWeight = 300)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Ico.PIN, GOLD, 18)
                     Spacer(Modifier.width(10.dp))
@@ -143,7 +143,7 @@ private fun Home08(m: HomeModel, nav: Nav, first: FocusRequester) {
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(64.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                 Column(horizontalAlignment = Alignment.End) {
                     T("NEXT · ${n.time}", Fonts.Josefin, 18, MUTED, spacing = 0.3f)
-                    Ar(n.name, Fonts.Qahiri, 128, INK, lineHeight = 1.15f)
+                    Ar(n.name, Fonts.Qahiri, 128, INK, lineHeight = 1.15f, latin = Fonts.Josefin, latinSize = 104, latinWeight = 300)
                 }
                 Box(Modifier.size(2.dp, 120.dp).background(cd))
                 CountdownGroups(n.groups, cd, Fonts.Josefin, 120, 300, Fonts.Josefin, 17, 0.3f, sepSize = 104, gap = 14, sepWeight = 200, labelGap = 4)
@@ -168,7 +168,7 @@ private fun Home08(m: HomeModel, nav: Nav, first: FocusRequester) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     T(p.time, Fonts.Josefin, 28, tc)
-                    Ar(p.name, Fonts.Qahiri, 46, nc, lineHeight = 1.2f)
+                    Ar(p.name, Fonts.Qahiri, 46, nc, lineHeight = 1.2f, latin = Fonts.Josefin, latinSize = 28, latinWeight = 400)
                 }
             }
         }

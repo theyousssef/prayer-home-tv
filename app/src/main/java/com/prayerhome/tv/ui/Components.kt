@@ -110,7 +110,13 @@ fun T(
     BasicText(text, modifier, style(font, size, color, weight, spacing, 0f, align, false), maxLines = 1, overflow = TextOverflow.Ellipsis, softWrap = false)
 }
 
-/** Arabic text: right-to-left shaping with the theme's Arabic face. */
+fun hasArabic(s: String) = s.any { it in '\u0600'..'\u06FF' }
+
+/**
+ * Arabic text: right-to-left shaping with the theme's Arabic face.
+ * The same slots show English when the language setting is English: text without Arabic letters is
+ * drawn as Latin text in [latin] (the theme's display or body face) at [latinSize].
+ */
 @Composable
 fun Ar(
     text: String,
@@ -124,7 +130,17 @@ fun Ar(
     maxLines: Int = 1,
     /** Optional face for the digits only (some display faces draw hard-to-read numerals). */
     digits: FontFamily? = null,
+    latin: FontFamily? = null,
+    latinSize: Int = size,
+    latinWeight: Int = weight,
+    latinSpacing: Float = 0f,
+    latinLineHeight: Float = lineHeight,
+    latinItalic: Boolean = false,
 ) {
+    if (!hasArabic(text)) {
+        T(text, latin ?: font, latinSize, color, modifier, latinWeight, latinSpacing, latinLineHeight, align, latinItalic, maxLines)
+        return
+    }
     if (digits != null) {
         val t = text.replace(' ', '\u00A0')
         val annotated = androidx.compose.ui.text.buildAnnotatedString {

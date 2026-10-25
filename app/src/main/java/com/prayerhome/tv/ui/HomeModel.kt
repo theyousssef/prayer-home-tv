@@ -8,7 +8,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.prayerhome.tv.App
 import com.prayerhome.tv.apps.AppEntry
-import com.prayerhome.tv.core.CHIME_MINUTES
 import com.prayerhome.tv.core.Countdown
 import com.prayerhome.tv.core.DateText
 import com.prayerhome.tv.core.Prayer
@@ -33,7 +32,7 @@ data class ClockView(
 @Immutable
 data class PrayerRow(
     val prayer: Prayer,
-    val name: String,       // Arabic
+    val name: String,       // Arabic, or English when the language setting says so
     val time: String,       // "3:51 PM"
     val timeShort: String,  // "3:51"
     val ampm: String,
@@ -44,7 +43,7 @@ data class PrayerRow(
 
 @Immutable
 data class NextView(
-    val name: String,       // Arabic
+    val name: String,       // Arabic or English
     val time: String,       // "3:51 PM"
     val chimeAt: String,    // "3:41 PM"
     val groups: List<Pair<String, String>>,
@@ -68,6 +67,16 @@ class HomeModel(private val app: App) {
     var pinnedIds by mutableStateOf(app.prefs.pinnedApps)
     var themeIndex by mutableIntStateOf(app.prefs.themeIndex)
     var scoresStatus by mutableStateOf("")
+    /** Prayer names and Hijri date in English. */
+    var english by mutableStateOf(app.prefs.english)
+        private set
+    /** The chime's lead time, which is also when the countdown turns red. */
+    var leadMinutes by mutableIntStateOf(app.prefs.chimeMinutes)
+        private set
+    /** A short themed message shown at the bottom of the screen (e.g. "Quran Reader isn't installed"). */
+    var toast by mutableStateOf<String?>(null)
+    /** The "Keep reciting on the Home screen?" question, with the Quran app's title; null = hidden. */
+    var keepPlaying by mutableStateOf<String?>(null)
 
     val location: String get() = app.prefs.location.name
     val methodLabel: String get() = com.prayerhome.tv.core.CalcMethod.byId(app.prefs.methodId).label
@@ -81,6 +90,8 @@ class HomeModel(private val app: App) {
             prefsVersion++
             pinnedIds = app.prefs.pinnedApps
             themeIndex = app.prefs.themeIndex
+            english = app.prefs.english
+            leadMinutes = app.prefs.chimeMinutes
         }
     }
 
@@ -96,17 +107,18 @@ class HomeModel(private val app: App) {
     val clock: ClockView by derivedStateOf {
         prefsVersion
         val z = now.atZone(day.zone)
-        ClockView(DateText.clock(z), DateText.ampm(z), DateText.longDate(z), DateText.hijri(z.toLocalDate(), app.prefs.hijriOffset), day.zone)
+        ClockView(DateText.clock(z), DateText.ampm(z), DateText.longDate(z), DateText.hijri(z.toLocalDate(), app.prefs.hijriOffset, english), day.zone)
     }
 
     val seconds: String by derivedStateOf { DateText.seconds(now.atZone(day.zone)) }
 
     val prayers: List<PrayerRow> by derivedStateOf {
         val d = day
+        val en = english
         d.slots.map { s ->
             PrayerRow(
                 prayer = s.prayer,
-                name = s.prayer.arabic,
+                name = s.prayer.label(en),
                 time = DateText.time(s.at, d.zone),
                 timeShort = DateText.timeNoAmPm(s.at, d.zone),
                 ampm = DateText.ampm(s.at, d.zone),
@@ -119,14 +131,15 @@ class HomeModel(private val app: App) {
 
     val next: NextView by derivedStateOf {
         val d = day
-        val cd = Countdown(Duration.between(now, d.next.at))
+        val lead = leadMinutes
+        val cd = Countdown(Duration.between(now, d.next.at), lead)
         val prev = d.slots.lastOrNull { it.prayer.isPrayer && it.at <= now }?.at ?: d.next.at.minus(Duration.ofHours(9))
         val span = Duration.between(prev, d.next.at).seconds.coerceAtLeast(1)
         val done = Duration.between(prev, now).seconds
         NextView(
-            name = d.next.prayer.arabic,
+            name = d.next.prayer.label(english),
             time = DateText.time(d.next.at, d.zone),
-            chimeAt = DateText.time(d.next.at.minus(Duration.ofMinutes(CHIME_MINUTES)), d.zone),
+            chimeAt = DateText.time(d.next.at.minus(Duration.ofMinutes(lead.toLong())), d.zone),
             groups = cd.groups,
             urgent = cd.urgent,
             short = cd.short,
@@ -134,12 +147,12 @@ class HomeModel(private val app: App) {
         )
     }
 
-    /** "Chime at 3:41 PM · 10 min before العصر" or, once inside the window, "Chime played · ...". */
+    /** "Chime at 3:41 PM" (AlertLine adds "· 10 min before العصر") or, once inside the window, "Chime played · ...". */
     val alertText: String by derivedStateOf {
         prefsVersion
         val n = next
         if (!app.prefs.chimeEnabled) "Chime off"
-        else if (n.urgent) "Chime played · under 10 minutes"
+        else if (n.urgent) "Chime played · under $leadMinutes minutes"
         else "Chime at ${n.chimeAt}"
     }
 

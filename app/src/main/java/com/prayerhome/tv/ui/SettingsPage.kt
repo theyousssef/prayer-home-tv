@@ -104,6 +104,7 @@ fun SettingsPage(s: PageStyle, m: HomeModel, nav: Nav) {
         add(Choice("theme", "Theme", "${themes[p.themeIndex.coerceIn(0, themes.size - 1)].name}   ${p.themeIndex + 1} / ${themes.size}") { d ->
             p.themeIndex = (p.themeIndex + d + themes.size) % themes.size; changed()
         })
+        add(Choice("lang", "Prayer names & Hijri date", if (p.english) "English" else "Arabic") { _ -> p.english = !p.english; changed() })
 
         add(Header("PRAYER TIMES"))
         add(Choice("loc", "Location", p.location.name) { d ->
@@ -127,9 +128,12 @@ fun SettingsPage(s: PageStyle, m: HomeModel, nav: Nav) {
         })
         add(Action("tz", "Timezone & daylight saving", "${m.day.zone.id} · follows the TV's tz database") { })
 
-        add(Header("CHIME · 10 MINUTES BEFORE EACH PRAYER"))
+        add(Header("CHIME · ${p.chimeMinutes} MINUTES BEFORE EACH PRAYER"))
         add(Choice("chime", "Chime", if (p.chimeEnabled) "On" else "Off") { _ -> p.chimeEnabled = !p.chimeEnabled; changed(true) })
-        add(Choice("vol", "Chime volume", "${p.chimeVolume}%") { d -> p.chimeVolume = (p.chimeVolume + d * 10).coerceIn(10, 100); changed() })
+        add(Choice("lead", "Chime time · also when the countdown turns red", "${p.chimeMinutes} min before each prayer") { d ->
+            p.chimeMinutes = cycle(Prefs.CHIME_CHOICES, p.chimeMinutes, d); changed(true)
+        })
+        add(Choice("vol", "Chime volume · % of TV volume", "${p.chimeVolume}%") { d -> p.chimeVolume = (p.chimeVolume + d * 10).coerceIn(20, 100); changed() })
         add(Choice("over", "Also while watching other apps", if (p.chimeOverApps) "Yes" else "Only on Home") { _ -> p.chimeOverApps = !p.chimeOverApps; changed() })
         add(Action("test", "Play the chime now", "OK") { ChimePlayer.play(ctx, p.chimeVolume) })
         val overlay = Settings.canDrawOverlays(ctx)

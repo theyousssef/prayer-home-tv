@@ -24,11 +24,11 @@ import android.text.style.RelativeSizeSpan
 import android.text.style.TypefaceSpan
 import android.util.Log
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import com.prayerhome.tv.App
 import com.prayerhome.tv.R
-import com.prayerhome.tv.core.CHIME_MINUTES
 import com.prayerhome.tv.core.Prayer
 import com.prayerhome.tv.core.PrayerSchedule
 import java.time.Instant
@@ -37,7 +37,7 @@ private const val TAG = "PrayerChime"
 private const val ACTION_CHIME = "com.prayerhome.tv.CHIME"
 
 object ChimeScheduler {
-    /** (Re)arms a single exact alarm for the next "10 minutes before prayer" moment. */
+    /** (Re)arms a single exact alarm for the next "N minutes before prayer" moment ([com.prayerhome.tv.core.Prefs.chimeMinutes]). */
     fun schedule(context: Context) {
         val prefs = App.prefs(context)
         val am = context.getSystemService(AlarmManager::class.java)
@@ -83,6 +83,10 @@ class ChimeReceiver : BroadcastReceiver() {
 }
 
 object ChimePlayer {
+    /**
+     * Plays the chime at [volume] percent (20..100) of the stream's current volume: MediaPlayer's
+     * volume is a gain applied on top of the TV volume the user has set.
+     */
     fun play(context: Context, volume: Int, onDone: () -> Unit = {}) {
         val am = context.getSystemService(AudioManager::class.java)
         // Android 15+ mutes "media" from apps in the background, so use the alarm stream there;
@@ -104,7 +108,7 @@ object ChimePlayer {
             onDone()
             return
         }
-        val v = (volume.coerceIn(0, 100) / 100f)
+        val v = (volume.coerceIn(20, 100) / 100f)
         mp.setVolume(v, v)
         mp.setOnCompletionListener {
             it.release()
@@ -115,30 +119,58 @@ object ChimePlayer {
     }
 }
 
-/** A small banner over whatever app is on screen. Needs the "display over other apps" permission. */
+/** The prayer banner: "العصر   in 10 minutes" (or "Asr in 10 minutes") over whatever app is on screen. */
 object ChimeBanner {
     fun show(context: Context, prayer: Prayer) {
-        if (!Settings.canDrawOverlays(context)) return
-        val wm = context.getSystemService(WindowManager::class.java)
-        val arabic = runCatching { context.resources.getFont(R.font.amiri_700) }.getOrNull()
-        val latin = runCatching { context.resources.getFont(R.font.jost_500) }.getOrNull()
-        val label = SpannableString("${prayer.arabic}   in $CHIME_MINUTES minutes")
+        val prefs = App.prefs(context)
+        val name = prayer.label(prefs.english)
+        val label = SpannableString("$name   in ${prefs.chimeMinutes} minutes")
+        val arabic = if (prefs.english) null else runCatching { context.resources.getFont(R.font.amiri_700) }.getOrNull()
         if (arabic != null) {
-            label.setSpan(TypefaceSpan(arabic), 0, prayer.arabic.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            label.setSpan(RelativeSizeSpan(1.3f), 0, prayer.arabic.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            label.setSpan(TypefaceSpan(arabic), 0, name.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            label.setSpan(RelativeSizeSpan(1.3f), 0, name.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
-        val tv = TextView(context).apply {
-            text = label
-            textSize = 15f
-            setTextColor(Color.parseColor("#F3EEE3"))
-            typeface = latin ?: Typeface.DEFAULT
-            setPadding(48, 22, 48, 22)
-            background = GradientDrawable().apply {
-                cornerRadius = 100f
-                setColor(Color.parseColor("#E60B1020"))
-                setStroke(3, Color.parseColor("#FF5A5F"))
-            }
+        Banner.show(context, Banner.RED) { Banner.text(it, label) }
+    }
+}
+
+/**
+ * Small pill-shaped banners in the top-right corner, over whatever app is on screen, removed after
+ * 12 seconds. Needs the "display over other apps" permission. Banners arriving together stack downwards.
+ */
+object Banner {
+    val RED = Color.parseColor("#FF5A5F")
+    val GOLD = Color.parseColor("#D9B26F")
+    val INK = Color.parseColor("#F3EEE3")
+    val MUTED = Color.parseColor("#A3ABBD")
+    private const val SLOT_PX = 120
+    private val slots = arrayOfNulls<View>(4)
+
+    /** A banner line in the chime's type: Jost, ink on midnight. */
+    fun text(context: Context, label: CharSequence, size: Float = 15f, color: Int = INK) = TextView(context).apply {
+        text = label
+        textSize = size
+        setTextColor(color)
+        typeface = runCatching { context.resources.getFont(R.font.jost_500) }.getOrNull() ?: Typeface.DEFAULT
+    }
+
+    /** Shows the view [build] makes (on the main thread) with a [stroke]-coloured outline. Safe from any thread. */
+    fun show(context: Context, stroke: Int, build: (Context) -> View) {
+        if (!Settings.canDrawOverlays(context)) return
+        val app = context.applicationContext
+        Handler(Looper.getMainLooper()).post { runCatching { add(app, build(app), stroke) }.onFailure { Log.w(TAG, "banner failed", it) } }
+    }
+
+    private fun add(context: Context, content: View, stroke: Int) {
+        val wm = context.getSystemService(WindowManager::class.java)
+        content.setPadding(48, 22, 48, 22)
+        content.background = GradientDrawable().apply {
+            cornerRadius = 100f
+            setColor(Color.parseColor("#E60B1020"))
+            setStroke(3, stroke)
         }
+        val slot = slots.indexOfFirst { it == null }.coerceAtLeast(0)
+        slots[slot]?.let { old -> runCatching { wm.removeView(old) } }
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -147,11 +179,15 @@ object ChimeBanner {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.END
-            x = 40; y = 40
+            x = 40; y = 40 + slot * SLOT_PX
         }
         runCatching {
-            wm.addView(tv, lp)
-            Handler(Looper.getMainLooper()).postDelayed({ runCatching { wm.removeView(tv) } }, 12_000)
+            wm.addView(content, lp)
+            slots[slot] = content
+            Handler(Looper.getMainLooper()).postDelayed({
+                runCatching { wm.removeView(content) }
+                if (slots[slot] === content) slots[slot] = null
+            }, 12_000)
         }.onFailure { Log.w(TAG, "banner failed", it) }
     }
 }

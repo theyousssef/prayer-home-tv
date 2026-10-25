@@ -57,7 +57,7 @@ fun PageHeader(s: PageStyle, m: HomeModel, title: String, nav: Nav, backFocus: F
             Modifier.box(androidx.compose.ui.graphics.Color.Transparent, chipColor, 1.dp, RoundedCornerShape(999.dp)).padding(horizontal = 22.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Ar(n.name, s.arabic, 30, chipColor, weight = s.arabicWeight)
+            Ar(n.name, s.arabic, 30, chipColor, weight = s.arabicWeight, latin = s.body, latinSize = 24, latinWeight = 600)
             Spacer(Modifier.width(12.dp))
             T("in ${n.short}", s.body, 22, chipColor)
         }

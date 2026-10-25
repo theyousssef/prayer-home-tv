@@ -159,7 +159,7 @@ private fun Home09(m: HomeModel, nav: Nav, first: FocusRequester) {
                 T(c.ampm, Fonts.BarlowCondensed, 40, GOLD, modifier = Modifier.padding(bottom = 12.dp))
             }
             T(c.date, Fonts.Barlow, 26, INK, weight = 300)
-            Ar(c.hijri.full, Fonts.Alexandria, 34, GOLD, weight = 500, lineHeight = 1.5f, modifier = Modifier.padding(top = 8.dp))
+            Ar(c.hijri.full, Fonts.Alexandria, 34, GOLD, weight = 500, lineHeight = 1.5f, modifier = Modifier.padding(top = 8.dp), latin = Fonts.BarlowCondensed, latinSize = 34, latinWeight = 500)
             Box(Modifier.padding(vertical = 20.dp).fillMaxWidth().height(1.dp).background(LINE))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 T("NEXT · ${n.time}", Fonts.Barlow, 18, MUTED, spacing = 0.2f)
@@ -179,7 +179,7 @@ private fun Home09(m: HomeModel, nav: Nav, first: FocusRequester) {
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Ar(n.name, Fonts.Alexandria, 64, INK, weight = 600)
+                Ar(n.name, Fonts.Alexandria, 64, INK, weight = 600, latin = Fonts.BarlowCondensed, latinSize = 76, latinWeight = 600)
             }
             Column(Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.Bottom)) {
                 for (p in m.prayers) {
@@ -192,7 +192,7 @@ private fun Home09(m: HomeModel, nav: Nav, first: FocusRequester) {
                     ) {
                         T(p.time, Fonts.BarlowCondensed, 28, tc)
                         Spacer(Modifier.weight(1f))
-                        Ar(p.name, Fonts.Alexandria, 28, nc, weight = 500)
+                        Ar(p.name, Fonts.Alexandria, 28, nc, weight = 500, latin = Fonts.Barlow, latinSize = 26, latinWeight = 500)
                     }
                 }
             }

@@ -123,7 +123,7 @@ private fun Dial(m: HomeModel) {
                 Modifier.offset((if (right) anchor.x else anchor.x - 260f).dp, (anchor.y - 52).dp).width(260.dp),
                 horizontalAlignment = if (right) Alignment.Start else Alignment.End,
             ) {
-                Ar(p.name, Fonts.NotoKufi, 36, nc, weight = 600)
+                Ar(p.name, Fonts.NotoKufi, 36, nc, weight = 600, latin = Fonts.Sora, latinSize = 30, latinWeight = 500)
                 T(p.time, Fonts.Sora, 24, tc)
             }
         }
@@ -147,7 +147,7 @@ private fun Home07(m: HomeModel, nav: Nav, first: FocusRequester) {
             verticalArrangement = Arrangement.Center,
         ) {
             T("NEXT PRAYER", Fonts.Sora, 18, MUTED, spacing = 0.3f)
-            Ar(n.name, Fonts.NotoKufi, 88, INK, weight = 600, lineHeight = 1.5f)
+            Ar(n.name, Fonts.NotoKufi, 88, INK, weight = 600, lineHeight = 1.5f, latin = Fonts.Sora, latinSize = 70, latinWeight = 300, latinLineHeight = 1.4f)
             CountdownGroups(n.groups, cd, Fonts.Sora, 84, 300, Fonts.Sora, 15, 0.26f, sepSize = 72, gap = 10, sepWeight = 200, labelGap = 8)
             val chip = if (n.urgent) RED else MUTED
             Row(Modifier.padding(top = 22.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -166,7 +166,7 @@ private fun Home07(m: HomeModel, nav: Nav, first: FocusRequester) {
                     T(c.ampm, Fonts.Sora, 46, GOLD, modifier = Modifier.padding(bottom = 16.dp))
                 }
                 T(c.date, Fonts.Sora, 34, INK, weight = 300, modifier = Modifier.padding(top = 10.dp))
-                Ar(c.hijri.full, Fonts.NotoKufi, 40, GOLD, weight = 500, modifier = Modifier.padding(top = 10.dp))
+                Ar(c.hijri.full, Fonts.NotoKufi, 40, GOLD, weight = 500, modifier = Modifier.padding(top = 10.dp), latin = Fonts.Sora, latinSize = 30, latinWeight = 300)
             }
             MatchesCard(nav, Modifier.fillMaxWidth().height(250.dp), radius = 24, bg = CARD, bgFocus = CARD_HI, border = LINE, focusBorder = GOLD) {
                 val list = m.homeMatches

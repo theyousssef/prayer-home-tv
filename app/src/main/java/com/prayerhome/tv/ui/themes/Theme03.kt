@@ -109,7 +109,7 @@ private fun Home03(m: HomeModel, nav: Nav, first: FocusRequester) {
                     Spacer(Modifier.width(28.dp))
                     Box(Modifier.size(2.dp, 40.dp).background(TEAL))
                     Spacer(Modifier.width(28.dp))
-                    Ar(c.hijri.full, Fonts.Kufam, 38, TEAL, weight = 500)
+                    Ar(c.hijri.full, Fonts.Kufam, 38, TEAL, weight = 500, latin = Fonts.Archivo, latinSize = 32, latinWeight = 400)
                 }
             }
             val n = m.next
@@ -125,7 +125,7 @@ private fun Home03(m: HomeModel, nav: Nav, first: FocusRequester) {
                         Spacer(Modifier.width(8.dp))
                         T(if (n.urgent) "CHIME PLAYED" else "CHIME ${n.chimeAt}", Fonts.JetBrains, 18, chip)
                     }
-                    Ar(n.name, Fonts.Blaka, 120, INK, lineHeight = 1.1f, align = TextAlign.Right, modifier = Modifier.fillMaxWidth())
+                    Ar(n.name, Fonts.Blaka, 120, INK, lineHeight = 1.1f, align = TextAlign.Right, modifier = Modifier.fillMaxWidth(), latin = Fonts.Archivo, latinSize = 112, latinWeight = 600, latinSpacing = -0.02f)
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                         for ((v, l) in n.groups) {
                             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -209,7 +209,7 @@ private fun Timeline03(m: HomeModel) {
             val x = frac(p.at) * w
             Column(Modifier.offset((x - 90).dp, 0.dp).width(180.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 val nc = if (p.isNext) cd else if (p.isPast) MUTED else INK
-                Box(Modifier.height(70.dp), contentAlignment = Alignment.BottomCenter) { Ar(p.name, Fonts.Kufam, 36, nc, weight = 600) }
+                Box(Modifier.height(70.dp), contentAlignment = Alignment.BottomCenter) { Ar(p.name, Fonts.Kufam, 36, nc, weight = 600, latin = Fonts.Archivo, latinSize = 30, latinWeight = 500) }
                 Box(Modifier.height(48.dp), contentAlignment = Alignment.Center) {
                     val d = if (p.isNext) 28 else 16
                     val mod = Modifier.size(d.dp)

@@ -15,18 +15,18 @@ data class PrayerDay(
     val next: PrayerSlot,
 )
 
-/** The countdown to [PrayerDay.next]. */
-data class Countdown(val remaining: Duration) {
-    val urgent get() = remaining <= Duration.ofMinutes(CHIME_MINUTES)
+/** The countdown to [PrayerDay.next]; it turns [urgent] (red) once the chime's lead time is reached. */
+data class Countdown(val remaining: Duration, val leadMinutes: Int) {
+    val urgent get() = remaining <= Duration.ofMinutes(leadMinutes.toLong())
 
-    /** Two big number groups as the designs show them: HRS:MIN normally, MIN:SEC in the last 10 minutes. */
+    /** Two big number groups as the designs show them: HRS:MIN normally, MIN:SEC in the red phase. */
     val groups: List<Pair<String, String>>
         get() {
             val s = remaining.seconds.coerceAtLeast(0)
             return if (urgent) {
                 listOf(pad(s / 60) to "MIN", pad(s % 60) to "SEC")
             } else {
-                // round up so the display reaches 00:10 exactly as the red phase begins
+                // round up so the display reaches the lead time exactly as the red phase begins
                 val m = (s + 59) / 60
                 listOf(pad(m / 60) to "HRS", pad(m % 60) to "MIN")
             }
@@ -44,8 +44,6 @@ data class Countdown(val remaining: Duration) {
 
     private fun pad(v: Long) = v.toString().padStart(2, '0')
 }
-
-const val CHIME_MINUTES = 10L
 
 object PrayerSchedule {
     fun zoneOf(prefs: Prefs): ZoneId =
@@ -67,14 +65,15 @@ object PrayerSchedule {
         return PrayerDay(date, zone, today, next)
     }
 
-    /** The next moment a chime should sound (10 minutes before a prayer), strictly after [now]. */
+    /** The next moment a chime should sound ([Prefs.chimeMinutes] before a prayer), strictly after [now]. */
     fun nextChime(prefs: Prefs, now: Instant): Pair<Instant, PrayerSlot> {
         val zone = zoneOf(prefs)
         val date = now.atZone(zone).toLocalDate()
+        val lead = Duration.ofMinutes(prefs.chimeMinutes.toLong())
         for (d in 0L..2L) {
             for (slot in slotsFor(prefs, date.plusDays(d))) {
                 if (!slot.prayer.isPrayer) continue
-                val at = slot.at.minus(Duration.ofMinutes(CHIME_MINUTES))
+                val at = slot.at.minus(lead)
                 if (at > now) return at to slot
             }
         }

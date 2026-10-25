@@ -92,7 +92,7 @@ private fun Home10(m: HomeModel, nav: Nav, first: FocusRequester) {
             T(c.date, Fonts.Karla, 26, INK, weight = 300, spacing = 0.06f, modifier = Modifier.padding(top = 8.dp))
         }
         Column(Modifier.align(Alignment.TopEnd).padding(end = 88.dp, top = 60.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Ar(m.clock.hijri.full, Fonts.Ruwudu, 56, GOLD, weight = 500, lineHeight = 1.5f)
+            Ar(m.clock.hijri.full, Fonts.Ruwudu, 56, GOLD, weight = 500, lineHeight = 1.5f, latin = Fonts.Karla, latinSize = 32, latinWeight = 300, latinSpacing = 0.04f)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Ico.PIN, GOLD, 18)
                 Spacer(Modifier.width(8.dp))
@@ -102,7 +102,7 @@ private fun Home10(m: HomeModel, nav: Nav, first: FocusRequester) {
 
         Column(Modifier.fillMaxWidth().padding(top = 150.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             T("NEXT PRAYER · ${n.time}", Fonts.Karla, 18, MUTED, spacing = 0.5f, modifier = Modifier.padding(bottom = 30.dp))
-            Ar(n.name, Fonts.Ruwudu, 250, if (n.urgent) INK else GOLD, weight = 700, lineHeight = 1.35f)
+            Ar(n.name, Fonts.Ruwudu, 250, if (n.urgent) INK else GOLD, weight = 700, lineHeight = 1.35f, latin = Fonts.Italiana, latinSize = 210, latinWeight = 400, latinLineHeight = 1.15f)
             Row(Modifier.width(760.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                 Box(Modifier.weight(1f).height(1.dp).background(hex(0x4A4130)))
                 Ornament()
@@ -128,7 +128,7 @@ private fun Home10(m: HomeModel, nav: Nav, first: FocusRequester) {
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     T(p.time, Fonts.Karla, 22, tc)
-                    Ar(p.name, Fonts.Ruwudu, 38, nc, weight = 600, lineHeight = 1.4f)
+                    Ar(p.name, Fonts.Ruwudu, 38, nc, weight = 600, lineHeight = 1.4f, latin = Fonts.Italiana, latinSize = 32, latinWeight = 400)
                 }
             }
         }

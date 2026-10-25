@@ -15,17 +15,23 @@ object DateText {
         "محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة",
         "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة",
     )
+    private val HIJRI_MONTHS_EN = arrayOf(
+        "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Ula", "Jumada al-Akhirah",
+        "Rajab", "Shaban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah",
+    )
     // java.time DayOfWeek: MONDAY=1 .. SUNDAY=7
     private val AR_DAYS = arrayOf("الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد")
 
-    data class Hijri(val weekday: String, val day: String, val month: String, val year: String) {
-        /** e.g. "السبت ١٣ جمادى الأولى ١٤٤٨ هـ" */
-        val full get() = "$weekday $day $month $year هـ"
-        val dayMonthYear get() = "$day $month $year هـ"
+    data class Hijri(val weekday: String, val day: String, val month: String, val year: String, val english: Boolean = false) {
+        /** e.g. "السبت ١٣ جمادى الأولى ١٤٤٨ هـ", or "Saturday 13 Jumada al-Ula 1448 AH" */
+        val full get() = "$weekday $day $month $yearLabel"
+        val dayMonthYear get() = "$day $month $yearLabel"
+        /** "١٤٤٨ هـ" / "1448 AH" */
+        val yearLabel get() = if (english) "$year AH" else "$year هـ"
     }
 
-    /** Umm al-Qura Hijri date for a civil date, shifted by [offsetDays]. */
-    fun hijri(date: LocalDate, offsetDays: Int): Hijri {
+    /** Umm al-Qura Hijri date for a civil date, shifted by [offsetDays]; in English with Latin digits when [english]. */
+    fun hijri(date: LocalDate, offsetDays: Int, english: Boolean = false): Hijri {
         val shifted = date.plusDays(offsetDays.toLong())
         val cal = IslamicCalendar(TimeZone.GMT_ZONE)
         cal.calculationType = IslamicCalendar.CalculationType.ISLAMIC_UMALQURA
@@ -33,6 +39,7 @@ object DateText {
         val d = cal.get(IslamicCalendar.DAY_OF_MONTH)
         val m = cal.get(IslamicCalendar.MONTH)
         val y = cal.get(IslamicCalendar.YEAR)
+        if (english) return Hijri(date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH), "$d", HIJRI_MONTHS_EN[m], "$y", true)
         return Hijri(AR_DAYS[date.dayOfWeek.value - 1], arabicDigits(d), HIJRI_MONTHS[m], arabicDigits(y))
     }
 

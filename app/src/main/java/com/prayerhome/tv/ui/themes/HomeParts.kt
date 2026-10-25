@@ -208,7 +208,7 @@ fun MatchesCard(
     }
 }
 
-/** "Chime at 3:41 PM · 10 min before العصر" with the prayer name in the Arabic face. */
+/** "Chime at 3:41 PM · 10 min before العصر" with the prayer name in the Arabic face (or "… before Asr"). */
 @Composable
 fun AlertLine(m: HomeModel, font: FontFamily, size: Int, color: Color, arabic: FontFamily, spacing: Float = 0f, withName: Boolean = true, arabicScale: Float = 1.25f) {
     val text = m.alertText
@@ -216,8 +216,10 @@ fun AlertLine(m: HomeModel, font: FontFamily, size: Int, color: Color, arabic: F
     val s = buildAnnotatedString {
         append(text)
         if (withName && text.startsWith("Chime at")) {
-            append(" · 10 min before ")
-            withStyle(SpanStyle(fontFamily = arabic, fontWeight = FontWeight.Bold, fontSize = (size * arabicScale).sp, letterSpacing = 0.sp)) { append(n.name) }
+            append(" · ${m.leadMinutes} min before ")
+            if (com.prayerhome.tv.ui.hasArabic(n.name)) {
+                withStyle(SpanStyle(fontFamily = arabic, fontWeight = FontWeight.Bold, fontSize = (size * arabicScale).sp, letterSpacing = 0.sp)) { append(n.name) }
+            } else append(n.name)
         }
     }
     T(s, font, size, color, spacing = spacing)

@@ -20,7 +20,9 @@ enum class Prayer(val arabic: String, val english: String, val isPrayer: Boolean
     DHUHR("الظهر", "Dhuhr", true),
     ASR("العصر", "Asr", true),
     MAGHRIB("المغرب", "Maghrib", true),
-    ISHA("العشاء", "Isha", true),
+    ISHA("العشاء", "Isha", true);
+
+    fun label(inEnglish: Boolean) = if (inEnglish) english else arabic
 }
 
 /** Isha is either an angle or, when [ishaMinutes] > 0, a fixed interval after maghrib. */

@@ -134,7 +134,7 @@ private fun Clock01(m: HomeModel, modifier: Modifier) {
             T(c.ampm, Fonts.Cormorant, 64, GOLD, modifier = Modifier.padding(bottom = 24.dp))
         }
         T(c.date, Fonts.Jost, 40, INK, weight = 300, spacing = 0.02f, modifier = Modifier.padding(top = 24.dp))
-        Ar(c.hijri.full, Fonts.Amiri, 58, GOLD, modifier = Modifier.padding(top = 10.dp))
+        Ar(c.hijri.full, Fonts.Amiri, 58, GOLD, modifier = Modifier.padding(top = 10.dp), latin = Fonts.Cormorant, latinSize = 54, latinWeight = 500)
     }
 }
 
@@ -149,7 +149,7 @@ private fun Arch01(m: HomeModel) {
         verticalArrangement = Arrangement.Bottom,
     ) {
         T("NEXT PRAYER", Fonts.Jost, 20, MUTED, spacing = 0.3f)
-        Ar(n.name, Fonts.Amiri, 110, INK, weight = 700, lineHeight = 1.1f)
+        Ar(n.name, Fonts.Amiri, 110, INK, weight = 700, lineHeight = 1.1f, latin = Fonts.Cormorant, latinSize = 104, latinWeight = 600)
         T("at ${n.time}", Fonts.Jost, 28, MUTED, modifier = Modifier.padding(bottom = 18.dp))
         CountdownGroups(n.groups, cd, Fonts.Cormorant, 100, 600, Fonts.Jost, 17, 0.25f, sepSize = 90, gap = 16)
     }
@@ -170,7 +170,7 @@ private fun Prayers01(m: HomeModel) {
             ) {
                 val nc = if (p.isNext) cd else if (p.isPast) hex(0x8C95AA) else INK
                 val tc = if (p.isNext) cd else if (p.isPast) hex(0x8C95AA) else hex(0xC9CEDA)
-                Ar(p.name, Fonts.Amiri, 46, nc, weight = 700, lineHeight = 1.2f)
+                Ar(p.name, Fonts.Amiri, 46, nc, weight = 700, lineHeight = 1.2f, latin = Fonts.Cormorant, latinSize = 44, latinWeight = 600)
                 T(p.time, Fonts.Jost, 30, tc)
             }
         }

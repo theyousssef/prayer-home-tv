@@ -86,7 +86,7 @@ private fun Home04(m: HomeModel, nav: Nav, first: FocusRequester) {
                     T(c.ampm.lowercase(), Fonts.DmSerif, 64, TEAL, italic = true, modifier = Modifier.padding(bottom = 18.dp))
                 }
                 T(c.date, Fonts.DmSerif, 44, INK, italic = true, modifier = Modifier.padding(top = 18.dp))
-                Ar(c.hijri.full, Fonts.ArefRuqaa, 62, TEAL, weight = 700, lineHeight = 1.5f)
+                Ar(c.hijri.full, Fonts.ArefRuqaa, 62, TEAL, weight = 700, lineHeight = 1.5f, latin = Fonts.DmSerif, latinSize = 46, latinWeight = 400)
             }
             Box(Modifier.width(1.dp).fillMaxHeight().background(RULE))
             Column(Modifier.width(640.dp).fillMaxHeight().padding(start = 56.dp), verticalArrangement = Arrangement.Center) {
@@ -98,7 +98,7 @@ private fun Home04(m: HomeModel, nav: Nav, first: FocusRequester) {
                     Spacer(Modifier.width(8.dp))
                     T(if (n.urgent) "Chime played" else "Chime ${n.chimeAt}", Fonts.WorkSans, 20, chip, spacing = 0.06f)
                 }
-                Ar(n.name, Fonts.ArefRuqaa, 136, INK, weight = 700, lineHeight = 1.35f, align = TextAlign.Right, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+                Ar(n.name, Fonts.ArefRuqaa, 136, INK, weight = 700, lineHeight = 1.35f, align = TextAlign.Right, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), latin = Fonts.DmSerif, latinSize = 128, latinWeight = 400)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(26.dp, Alignment.End), verticalAlignment = Alignment.Bottom) {
                     for ((v, l) in n.groups) {
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -118,7 +118,7 @@ private fun Home04(m: HomeModel, nav: Nav, first: FocusRequester) {
                 val bg = if (p.isNext) (if (n.urgent) hex(0xF3DAD3) else CARD) else Color.Transparent
                 val c = if (p.isNext) cd else if (p.isPast) MUTED else INK
                 Column(Modifier.weight(1f).fillMaxHeight().background(bg), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Ar(p.name, Fonts.ArefRuqaa, 50, c, weight = 700, lineHeight = 1.35f)
+                    Ar(p.name, Fonts.ArefRuqaa, 50, c, weight = 700, lineHeight = 1.35f, latin = Fonts.DmSerif, latinSize = 44, latinWeight = 400)
                     T(p.time, Fonts.WorkSans, 28, c, weight = 500)
                 }
             }

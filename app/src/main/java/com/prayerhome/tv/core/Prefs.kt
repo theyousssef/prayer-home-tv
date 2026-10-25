@@ -53,14 +53,51 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("chime", true)
         set(v) = edit { putBoolean("chime", v) }
 
-    /** 0..100 */
+    /** Minutes before each prayer that the chime sounds; also when the countdown turns red. */
+    var chimeMinutes: Int
+        get() = sp.getInt("chimeMinutes", 10).let { if (it in CHIME_CHOICES) it else 10 }
+        set(v) = edit { putInt("chimeMinutes", v) }
+
+    /** 20..100, a percentage of the TV's current volume. Older builds allowed 10, which reads as 20. */
     var chimeVolume: Int
-        get() = sp.getInt("chimeVolume", 80)
-        set(v) = edit { putInt("chimeVolume", v) }
+        get() = sp.getInt("chimeVolume", 100).coerceIn(20, 100)
+        set(v) = edit { putInt("chimeVolume", v.coerceIn(20, 100)) }
 
     var chimeOverApps: Boolean
         get() = sp.getBoolean("chimeOverApps", true)
         set(v) = edit { putBoolean("chimeOverApps", v) }
+
+    /** Prayer names and the Hijri date in English (Latin digits) instead of Arabic. */
+    var english: Boolean
+        get() = sp.getBoolean("english", false)
+        set(v) = edit { putBoolean("english", v) }
+
+    /** Keep the TV's screensaver (Backdrop / TCL gallery) from starting; see [com.prayerhome.tv.core.Screensaver]. */
+    var screensaverOff: Boolean
+        get() = sp.getBoolean("screensaverOff", true)
+        set(v) = edit { putBoolean("screensaverOff", v) }
+
+    /** Kick-off and goal banners for your teams' matches. */
+    var matchAlerts: Boolean
+        get() = sp.getBoolean("matchAlerts", true)
+        set(v) = edit { putBoolean("matchAlerts", v) }
+
+    /** Per-match override of [matchAlerts]: null = follow it. */
+    fun matchAlertOverride(id: String): Boolean? =
+        overrides().optJSONObject(id)?.let { if (it.has("on")) it.getBoolean("on") else null }
+
+    fun matchAlertsFor(id: String): Boolean = matchAlertOverride(id) ?: matchAlerts
+
+    /** Sets (or with null clears) one match's override. Overrides for matches over 2 days old are dropped. */
+    fun setMatchAlertOverride(id: String, kickoffEpoch: Long, on: Boolean?) = edit {
+        val o = overrides()
+        if (on == null) o.remove(id) else o.put(id, JSONObject().put("on", on).put("k", kickoffEpoch))
+        val stale = System.currentTimeMillis() / 1000 - 2 * 86400
+        o.keys().asSequence().toList().forEach { k -> if (o.optJSONObject(k)?.optLong("k", 0L)?.let { it < stale } != false) o.remove(k) }
+        putString("matchOverrides", o.toString())
+    }
+
+    private fun overrides(): JSONObject = runCatching { JSONObject(sp.getString("matchOverrides", "{}")!!) }.getOrDefault(JSONObject())
 
     var pinnedApps: List<String>
         get() = sp.getString("pinned", null)?.split('|')?.filter { it.isNotEmpty() }
@@ -95,6 +132,8 @@ class Prefs(context: Context) {
     }.getOrDefault(DEFAULT_TEAMS)
 
     companion object {
+        val CHIME_CHOICES = listOf(5, 10, 15, 20, 30)
+
         // LiveScore team ids
         val DEFAULT_TEAMS = listOf(
             TeamRef("456", "Zamalek", "enet/80591.png"),
