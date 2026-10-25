@@ -24,7 +24,7 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
-        <!-- the Quran Reader companion app: launched from Home, and told when Home is shown -->
+        <!-- the separate Quran Reader app, opened by the Quran button -->
         <package android:name="com.prayerhome.quran" />
     </queries>
 
@@ -74,14 +74,5 @@
         <receiver
             android:name=".football.MatchAlertReceiver"
             android:exported="false" />
-
-        <!-- the Quran Reader asks "keep playing?" when it is left while reciting -->
-        <receiver
-            android:name=".quran.QuranReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.prayerhome.tv.action.ASK_KEEP_PLAYING" />
-            </intent-filter>
-        </receiver>
     </application>
 </manifest>

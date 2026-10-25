@@ -6,7 +6,6 @@ import android.media.tv.TvContract
 import android.media.tv.TvInputInfo
 import android.media.tv.TvInputManager
 import android.os.Bundle
-import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
@@ -36,7 +35,6 @@ import com.prayerhome.tv.apps.AppEntry
 import com.prayerhome.tv.core.Screensaver
 import com.prayerhome.tv.football.MatchAlerts
 import com.prayerhome.tv.quran.Quran
-import com.prayerhome.tv.ui.KeepPlayingDialog
 import com.prayerhome.tv.ui.ToastBar
 import com.prayerhome.tv.ui.AppsPage
 import com.prayerhome.tv.ui.HomeModel
@@ -74,14 +72,6 @@ class MainActivity : ComponentActivity() {
                 launch { app.matches.status.collect { model.scoresStatus = it } }
                 launch { app.apps.apps.collect { model.allApps = it } }
                 launch { app.matches.runWhileVisible() }
-                // The Quran Reader asked "keep playing?": show it now, or if it came just before Home was shown.
-                launch {
-                    Quran.ask.collect { a ->
-                        if (a == null) return@collect
-                        if (SystemClock.elapsedRealtime() - a.at <= Quran.ASK_WINDOW_MS) model.keepPlaying = a.title.orEmpty()
-                        Quran.ask.value = null
-                    }
-                }
             }
         }
 
@@ -139,7 +129,7 @@ class MainActivity : ComponentActivity() {
                         Screen.MATCHES -> MatchesPage(theme.style, model, nav)
                         Screen.SETTINGS -> SettingsPage(theme.style, model, nav)
                     }
-                    if (screen.value == Screen.HOME && model.keepPlaying == null) {
+                    if (screen.value == Screen.HOME) {
                         LaunchedEffect(homeTick.intValue, model.themeIndex, model.pinned.size) {
                             delay(60)
                             runCatching { first.requestFocus() }
@@ -149,22 +139,11 @@ class MainActivity : ComponentActivity() {
                         ToastBar(theme.style, msg, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
                         LaunchedEffect(msg) { delay(3500); model.toast = null }
                     }
-                    model.keepPlaying?.let { title ->
-                        KeepPlayingDialog(theme.style, title, onKeep = { answerKeepPlaying(pause = false) }, onPause = { answerKeepPlaying(pause = true) })
-                    }
                 }
             }
         }
         BackHandler(enabled = screen.value != Screen.HOME) { nav.home() }
         BackHandler(enabled = screen.value == Screen.HOME) { /* the launcher has nowhere to go back to */ }
-        // registered last, so it wins while the question is showing: Back = keep playing
-        BackHandler(enabled = model.keepPlaying != null) { answerKeepPlaying(pause = false) }
-    }
-
-    private fun answerKeepPlaying(pause: Boolean) {
-        model.keepPlaying = null
-        Quran.send(this, if (pause) Quran.PAUSE else Quran.KEEP_PLAYING)
-        if (screen.value == Screen.HOME) homeTick.intValue++ // focus back on the first app
     }
 
     private fun openQuran() {
@@ -193,7 +172,6 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         App.homeVisible = true
-        Quran.send(this, Quran.HOME_SHOWN)
         // the TV's settings app may have switched the screensaver back on
         Screensaver.apply(this, app.prefs.screensaverOff)
     }
@@ -201,8 +179,6 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         App.homeVisible = false
-        Quran.send(this, Quran.HOME_HIDDEN)
-        model.keepPlaying = null // a question left unanswered isn't asked again later
     }
 
     private fun launchApp(a: AppEntry) {

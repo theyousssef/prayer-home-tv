@@ -75,8 +75,6 @@ class HomeModel(private val app: App) {
         private set
     /** A short themed message shown at the bottom of the screen (e.g. "Quran Reader isn't installed"). */
     var toast by mutableStateOf<String?>(null)
-    /** The "Keep reciting on the Home screen?" question, with the Quran app's title; null = hidden. */
-    var keepPlaying by mutableStateOf<String?>(null)
 
     val location: String get() = app.prefs.location.name
     val methodLabel: String get() = com.prayerhome.tv.core.CalcMethod.byId(app.prefs.methodId).label
