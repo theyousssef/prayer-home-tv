@@ -7,7 +7,7 @@ A lightweight home screen (launcher) for Google TV / Android TV, built around th
 - a chime 5–30 minutes (default 10) before each prayer, even while you're watching another app
 - your football teams' matches with club badges, live minute and score, plus silent kick-off and
   goal banners over other apps
-- a Quran button that opens the companion **Quran Reader** app, which can keep reciting on Home
+- a Quran button that opens the companion **[Quran Reader](https://github.com/theyousssef/quran-reader-tv)** app, which can keep reciting on Home
 - three pinned apps on Home, everything else on an Apps page
 - keeps the TV's screensaver from covering the prayer screen
 - ten themes, switchable from Settings
