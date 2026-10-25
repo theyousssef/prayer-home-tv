@@ -21,6 +21,12 @@ adb -s "$TV" shell cmd package compile -m speed -f com.prayerhome.tv >/dev/null
 # banners over other apps (the chime, and match kick-offs and goals)
 adb -s "$TV" shell appops set com.prayerhome.tv SYSTEM_ALERT_WINDOW allow
 
+# TCL's app-start guard (TclAppBoot) drops broadcasts to an app whose process isn't running, alarms
+# included, unless it may auto-start. Without this a killed launcher misses its chime and match
+# alarms, and the 30 s match-check chain stops for good. No-op on TVs without these ops.
+adb -s "$TV" shell appops set com.prayerhome.tv AUTO_START allow 2>/dev/null || true
+adb -s "$TV" shell appops set com.prayerhome.tv ASSOC_START allow 2>/dev/null || true
+
 # lets Prayer Home switch the TV's screensaver off (Settings → Screensaver)
 adb -s "$TV" shell pm grant com.prayerhome.tv android.permission.WRITE_SECURE_SETTINGS
 

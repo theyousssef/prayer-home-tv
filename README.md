@@ -38,6 +38,8 @@ and the TV on the same network.
    adb connect $TV
    adb -s $TV install -r prayer-home.apk
    adb -s $TV shell appops set com.prayerhome.tv SYSTEM_ALERT_WINDOW allow
+   adb -s $TV shell appops set com.prayerhome.tv AUTO_START allow    # TCL TVs only
+   adb -s $TV shell appops set com.prayerhome.tv ASSOC_START allow   # TCL TVs only
    adb -s $TV shell pm grant com.prayerhome.tv android.permission.WRITE_SECURE_SETTINGS
    adb -s $TV shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
    adb -s $TV shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
@@ -49,7 +51,9 @@ screen, are enabled, so both are switched off. Undo below.
 
 `SYSTEM_ALERT_WINDOW` lets the chime and match banners show over other apps. `WRITE_SECURE_SETTINGS`
 lets Prayer Home switch the screensaver off (Settings → Screensaver); without it that setting does
-nothing.
+nothing. On TCL TVs, `AUTO_START` and `ASSOC_START` let the chime and match alarms start Prayer Home
+when Android has closed it in the background; without them TCL's app guard drops those alarms
+silently, and match banners stop until Home is opened again.
 
 > **Wi‑Fi warning.** If your Wi‑Fi network was saved during the TV's first-time setup, switching off
 > the setup app (`setupwraith`) can make the TV forget it. Your adb connection then drops. If that

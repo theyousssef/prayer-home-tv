@@ -34,6 +34,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.prayerhome.tv.apps.AppEntry
 import com.prayerhome.tv.core.Screensaver
 import com.prayerhome.tv.football.MatchAlerts
+import com.prayerhome.tv.football.MatchWatch
 import com.prayerhome.tv.quran.Quran
 import com.prayerhome.tv.ui.ToastBar
 import com.prayerhome.tv.ui.AppsPage
@@ -179,6 +180,9 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         App.homeVisible = false
+        // Leaving Home: (re)arm the background match checks from the latest scores, in case the chain
+        // was broken (e.g. an alarm dropped while the process was dead).
+        MatchWatch.schedule(this)
     }
 
     private fun launchApp(a: AppEntry) {

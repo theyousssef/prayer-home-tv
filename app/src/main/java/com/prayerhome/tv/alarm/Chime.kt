@@ -151,6 +151,8 @@ object Banner {
         text = label
         textSize = size
         setTextColor(color)
+        // a short label like "57'" at the row's end was wrapping onto two lines
+        isSingleLine = true
         typeface = runCatching { context.resources.getFont(R.font.jost_500) }.getOrNull() ?: Typeface.DEFAULT
     }
 
