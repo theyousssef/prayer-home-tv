@@ -18,6 +18,9 @@ class Logos(context: Context) {
 
     fun cached(img: String): ImageBitmap? = mem.get(img)
 
+    /** The badge's file on disk, if it was downloaded already. */
+    fun file(side: Side): File? = if (side.img.isEmpty()) null else File(dir, side.img.replace('/', '_')).takeIf { it.exists() }
+
     suspend fun load(side: Side): ImageBitmap? {
         if (side.img.isEmpty()) return null
         mem.get(side.img)?.let { return it }

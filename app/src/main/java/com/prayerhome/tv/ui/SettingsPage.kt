@@ -145,6 +145,11 @@ fun SettingsPage(s: PageStyle, m: HomeModel, nav: Nav) {
             }
         })
 
+        add(Header("MATCH NOTIFICATIONS"))
+        add(Choice("alerts", "Kick-off & goal banners for my teams", if (p.matchAlerts) "On" else "Off") { _ ->
+            setMatchAlerts(ctx, !p.matchAlerts); changed()
+        })
+
         add(Header("MY TEAMS · OK TO REMOVE"))
         for (t in p.teams) {
             add(Action("team${t.id}", t.name, "Remove") {
@@ -289,3 +294,15 @@ private fun TeamSearch(s: PageStyle, m: HomeModel, onDone: () -> Unit) {
 }
 
 private fun youthOrWomen(n: String) = Regex("""\b(U\d\d|W|II|B|Reserves|Youth)\b""", RegexOption.IGNORE_CASE).containsMatchIn(n)
+
+/**
+ * Turns kick-off / goal banners on or off for every match without its own setting. Turning them on
+ * without the "display over other apps" permission opens that settings screen, like the chime's row.
+ */
+fun setMatchAlerts(ctx: android.content.Context, on: Boolean) {
+    App.prefs(ctx).matchAlerts = on
+    com.prayerhome.tv.football.MatchWatch.schedule(ctx)
+    if (on && !Settings.canDrawOverlays(ctx)) runCatching {
+        ctx.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${ctx.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+}

@@ -1,7 +1,9 @@
 package com.prayerhome.tv.football
 
 import android.content.Context
+import android.os.PowerManager
 import android.util.Log
+import com.prayerhome.tv.App
 import com.prayerhome.tv.core.Prefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -29,7 +31,8 @@ private const val TAG = "MatchRepo"
  * - The full window is re-downloaded at most every 2 hours (day files, ~10–100 KB each).
  * - While the home screen is visible and one of the teams is playing (or about to),
  *   the small "live" feed is polled every 15 seconds, so score and minute stay current.
- * - Nothing runs while another app is in front.
+ * - While another app is in front, [MatchWatch]'s alarms call [backgroundTick] every 30 s, but only
+ *   while a match is on (or about to start) and its kick-off/goal banners are wanted.
  */
 class MatchRepo(private val context: Context, private val prefs: Prefs) {
     private val _matches = MutableStateFlow<List<Match>>(emptyList())
@@ -41,6 +44,7 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
     private val cacheFile = File(context.filesDir, "matches.json")
     private val teamsFile = File(context.filesDir, "teams-index.json")
     private val mutex = Mutex()
+    private val pollMutex = Mutex()
     private var lastFull = Instant.EPOCH
     private var lastTeamKey = ""
     private val dayRefetchAt = HashMap<String, Instant>()
@@ -93,13 +97,32 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
             save()
             saveTeamIndex(pages.flatMap { it.teams })
             Log.i(TAG, "refreshed ${all.size} matches")
+            MatchAlerts.observe(context, all)
+            MatchWatch.schedule(context)
         } catch (e: Exception) {
             Log.w(TAG, "refresh failed", e)
             _status.value = "Scores offline"
         }
     }
 
+    /**
+     * One background check, called by [MatchWatch]'s alarm while another app is in front: a full
+     * refresh if the fixtures are old, then the small live feed if a match is on.
+     */
+    suspend fun backgroundTick() = withContext(Dispatchers.IO) {
+        // Home polls on its own while visible; nobody would see a banner while the screen is off
+        if (App.homeVisible || !context.getSystemService(PowerManager::class.java).isInteractive) return@withContext
+        val now = Instant.now()
+        if (teamKey() != lastTeamKey || Duration.between(lastFull, now) > Duration.ofHours(6)) refreshAll()
+        val hot = _matches.value.filter { inLiveWindow(it, now) }
+        if (hot.isNotEmpty()) pollLive(hot)
+    }
+
     private suspend fun pollLive(hot: List<Match>) {
+        pollMutex.withLock { pollLiveLocked(hot) }
+    }
+
+    private fun pollLiveLocked(hot: List<Match>) {
         val ids = prefs.teams.map { it.id }.toSet()
         val live = try {
             LiveScore.live(ids).associateBy { it.id }
@@ -130,12 +153,7 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
             _matches.value = updated
             save()
         }
-    }
-
-    private fun inLiveWindow(m: Match, now: Instant): Boolean = when (m.state) {
-        MatchState.LIVE -> true
-        MatchState.UPCOMING -> now > m.kickoff.minus(Duration.ofMinutes(5)) && now < m.kickoff.plus(Duration.ofHours(4))
-        else -> false
+        MatchAlerts.observe(context, updated)
     }
 
     private fun save() {
@@ -164,6 +182,15 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
     }.getOrDefault(emptyList())
 
     companion object {
+        /** Live polling starts this long before kick-off. */
+        val LEAD: Duration = Duration.ofMinutes(5)
+
+        fun inLiveWindow(m: Match, now: Instant): Boolean = when (m.state) {
+            MatchState.LIVE -> true
+            MatchState.UPCOMING -> now > m.kickoff.minus(LEAD) && now < m.kickoff.plus(Duration.ofHours(4))
+            else -> false
+        }
+
         /** Home screen: live matches first, then whichever are closest to now (before or after). */
         fun closest(all: List<Match>, now: Instant, count: Int = 3): List<Match> {
             val (live, rest) = all.filter { it.state != MatchState.OFF || it.kickoff > now }.partition { it.isLive }

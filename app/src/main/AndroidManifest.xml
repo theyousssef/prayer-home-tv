@@ -67,5 +67,19 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <!-- kick-off / goal checks while a match is on (chained alarms) -->
+        <receiver
+            android:name=".football.MatchAlertReceiver"
+            android:exported="false" />
+
+        <!-- the Quran Reader asks "keep playing?" when it is left while reciting -->
+        <receiver
+            android:name=".quran.QuranReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.prayerhome.tv.action.ASK_KEEP_PLAYING" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
