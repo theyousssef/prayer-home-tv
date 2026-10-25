@@ -52,6 +52,8 @@ import com.prayerhome.tv.alarm.ChimeScheduler
 import com.prayerhome.tv.core.CalcMethod
 import com.prayerhome.tv.core.Cities
 import com.prayerhome.tv.core.Prayer
+import com.prayerhome.tv.core.Prefs
+import com.prayerhome.tv.core.Screensaver
 import com.prayerhome.tv.core.TeamRef
 import com.prayerhome.tv.football.LiveScore
 import kotlinx.coroutines.Dispatchers
@@ -153,6 +155,10 @@ fun SettingsPage(s: PageStyle, m: HomeModel, nav: Nav) {
         add(Action("addteam", "Add a team…", "Search") { searching = true })
 
         add(Header("SYSTEM"))
+        val canWrite = Screensaver.canWrite(ctx)
+        add(Choice("saver", "Screensaver", (if (p.screensaverOff) "Off" else "On (TV default)") + if (canWrite) "" else " · needs the adb grant in README") { _ ->
+            p.screensaverOff = !p.screensaverOff; Screensaver.apply(ctx, p.screensaverOff); changed()
+        })
         add(Action("refresh", "Refresh match data", m.scoresStatus.ifEmpty { "OK" }) { scope.launch { app.matches.refreshAll() } })
     }
 
