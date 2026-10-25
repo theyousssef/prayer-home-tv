@@ -24,6 +24,8 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- the Quran Reader companion app: launched from Home, and told when Home is shown -->
+        <package android:name="com.prayerhome.quran" />
     </queries>
 
     <application

@@ -23,6 +23,8 @@ class Nav(
     val settings: () -> Unit,
     val home: () -> Unit,
     val launch: (AppEntry) -> Unit,
+    /** Opens the Quran Reader app. */
+    val quran: () -> Unit = {},
 )
 
 /**

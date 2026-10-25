@@ -136,6 +136,16 @@ private fun Home10(m: HomeModel, nav: Nav, first: FocusRequester) {
         // round app icons
         Row(Modifier.align(Alignment.BottomStart).padding(start = 88.dp, bottom = 48.dp), horizontalArrangement = Arrangement.spacedBy(30.dp)) {
             m.pinned.forEachIndexed { i, app -> RoundApp(app, if (i == 0) first else null) { nav.launch(app) } }
+            // the Quran Reader: a gold ring, a touch warmer than the dashed system buttons beside it
+            Focusable(onClick = nav.quran) { f ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(
+                        Modifier.size(96.dp).scale(if (f) 1.06f else 1f).box(if (f) CARD_HI else CARD, if (f) GOLD else hex(0x5A4A2C), if (f) 3.dp else 1.dp, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Ico.MUSHAF, GOLD, 40, stroke = 1.4f) }
+                    T("Quran", Fonts.Karla, 18, INK)
+                }
+            }
             Focusable(onClick = nav.apps, focusRequester = if (m.pinned.isEmpty()) first else null) { f ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(

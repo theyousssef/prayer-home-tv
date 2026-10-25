@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -133,33 +134,59 @@ private fun AppTile(
     }
 }
 
-/** "All apps" over a smaller "Settings" button, together the size of one app tile. */
+/**
+ * "All apps" over two smaller buttons, "Quran" (opens the Quran Reader) and "Settings", together the
+ * size of one app tile. On narrow tiles the small buttons put their label under the icon.
+ */
 @Composable
 private fun AllAppsTile(modifier: Modifier, fr: FocusRequester?, w: Int, h: Int, radius: Int, look: TileLook, label: String, labelBelow: Boolean, nav: Nav) {
     val gap = 10
-    val settingsH = (h * 0.3f).toInt().coerceAtLeast(48)
+    val each = (w - gap) / 2
+    val stacked = each < 120
+    val smallH = if (stacked) 76 else (h * 0.3f).toInt().coerceAtLeast(48)
     val width = if (modifier == Modifier) Modifier.width(w.dp) else Modifier.fillMaxWidth()
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(gap.dp)) {
-        DashedButton(width.height((h - settingsH - gap).dp), fr, radius, look, nav.apps, Ico.GRID, if (labelBelow) null else label, w, h - settingsH - gap)
-        DashedButton(width.height(settingsH.dp), null, radius, look, nav.settings, Ico.GEAR, "Settings", w, settingsH, small = true)
+        DashedButton(width.height((h - smallH - gap).dp), fr, radius, look, nav.apps, Ico.GRID, if (labelBelow) null else label, w, h - smallH - gap)
+        Row(width.height(smallH.dp), horizontalArrangement = Arrangement.spacedBy(gap.dp)) {
+            DashedButton(Modifier.weight(1f).fillMaxHeight(), null, radius, look, nav.quran, Ico.MUSHAF, "Quran", each, smallH, small = true, stacked = stacked, accent = true)
+            DashedButton(Modifier.weight(1f).fillMaxHeight(), null, radius, look, nav.settings, Ico.GEAR, "Settings", each, smallH, small = true, stacked = stacked)
+        }
         if (labelBelow) T(label, look.font, look.fontSize, look.muted)
     }
 }
 
+/**
+ * A dashed outline button. An [accent] one (Quran) is drawn as a solid tile like the apps beside it,
+ * with its icon in the theme's focus colour, so it reads as an app rather than a system button.
+ */
 @Composable
-private fun DashedButton(modifier: Modifier, fr: FocusRequester?, radius: Int, look: TileLook, onClick: () -> Unit, icon: String, label: String?, w: Int, h: Int, small: Boolean = false) {
-    val shape = look.shape?.invoke(radius) ?: RoundedCornerShape(radius.dp)
-    val r = if (small) minOf(radius, h / 2) else radius
+private fun DashedButton(
+    modifier: Modifier, fr: FocusRequester?, radius: Int, look: TileLook, onClick: () -> Unit, icon: String, label: String?, w: Int, h: Int,
+    small: Boolean = false, stacked: Boolean = false, accent: Boolean = false,
+) {
+    val r = if (small) minOf(radius, h / 2, w / 2) else radius
+    val shape = look.shape?.invoke(r) ?: RoundedCornerShape(r.dp)
     Focusable(modifier = modifier, onClick = onClick, focusRequester = fr) { focused ->
         Box(
             Modifier.matchParentSize().scale(if (focused) look.focusScale else 1f)
-                .let { if (focused) it.box(look.bgFocus, look.focusBorder, look.focusBorderWidth.dp, shape) else it.dashed(look.dashColor, r.dp) },
+                .let {
+                    when {
+                        focused -> it.box(look.bgFocus, look.focusBorder, look.focusBorderWidth.dp, shape)
+                        accent -> it.box(look.bg, look.border, 1.dp, shape)
+                        else -> it.dashed(look.dashColor, r.dp)
+                    }
+                },
             contentAlignment = Alignment.Center,
         ) {
-            val tint = if (focused) look.focusBorder else look.muted
-            val textColor = if (focused) look.text else look.muted
-            val fontSize = if (small) (look.fontSize - 4).coerceAtLeast(16) else look.fontSize
-            if (small || w.toFloat() / h >= 1.5f) {
+            val tint = if (focused || accent) look.focusBorder else look.muted
+            val textColor = if (focused || accent) look.text else look.muted
+            val fontSize = if (stacked) (look.fontSize - 6).coerceAtLeast(15) else if (small) (look.fontSize - 4).coerceAtLeast(16) else look.fontSize
+            if (stacked) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(icon, tint, 30, stroke = 1.5f)
+                    if (label != null) T(label, look.font, fontSize, textColor)
+                }
+            } else if (small || w.toFloat() / h >= 1.5f) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(icon, tint, if (small) 24 else 40, stroke = 1.5f)
                     if (label != null) {

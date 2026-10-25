@@ -6,6 +6,7 @@ import android.media.tv.TvContract
 import android.media.tv.TvInputInfo
 import android.media.tv.TvInputManager
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
@@ -14,6 +15,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -31,6 +33,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.prayerhome.tv.apps.AppEntry
+import com.prayerhome.tv.core.Screensaver
+import com.prayerhome.tv.football.MatchAlerts
+import com.prayerhome.tv.quran.Quran
+import com.prayerhome.tv.ui.KeepPlayingDialog
+import com.prayerhome.tv.ui.ToastBar
 import com.prayerhome.tv.ui.AppsPage
 import com.prayerhome.tv.ui.HomeModel
 import com.prayerhome.tv.ui.MatchesPage
@@ -67,6 +74,14 @@ class MainActivity : ComponentActivity() {
                 launch { app.matches.status.collect { model.scoresStatus = it } }
                 launch { app.apps.apps.collect { model.allApps = it } }
                 launch { app.matches.runWhileVisible() }
+                // The Quran Reader asked "keep playing?": show it now, or if it came just before Home was shown.
+                launch {
+                    Quran.ask.collect { a ->
+                        if (a == null) return@collect
+                        if (SystemClock.elapsedRealtime() - a.at <= Quran.ASK_WINDOW_MS) model.keepPlaying = a.title.orEmpty()
+                        Quran.ask.value = null
+                    }
+                }
             }
         }
 
@@ -76,6 +91,7 @@ class MainActivity : ComponentActivity() {
             settings = { screen.value = Screen.SETTINGS },
             home = { screen.value = Screen.HOME; homeTick.intValue++ },
             launch = ::launchApp,
+            quran = ::openQuran,
         )
         setContent { Root(nav) }
         handleExtras(intent)
@@ -84,15 +100,25 @@ class MainActivity : ComponentActivity() {
     private var debugShiftSeconds = 0L
 
     /**
-     * adb helpers: `am start -n com.prayerhome.tv/.MainActivity --ei theme 3 --es screen apps`.
-     * Debug builds also accept `--el shift <seconds>` to preview other times of day.
+     * adb helpers: `am start -n com.prayerhome.tv/.MainActivity --ei theme 3 --es screen apps --es lang en`.
+     * Debug builds also accept `--el shift <seconds>` to preview other times of day, and
+     * `--es simulate kickoff|goal [--ei delay <seconds>]` to fire a match banner (after a delay, so
+     * another app can be opened first).
      */
     private fun handleExtras(intent: Intent) {
         if (intent.hasExtra("theme")) app.prefs.themeIndex = intent.getIntExtra("theme", 0).coerceIn(0, THEMES.size - 1)
+        intent.getStringExtra("lang")?.let { app.prefs.english = it == "en" }
         intent.getStringExtra("screen")?.let { name -> Screen.entries.firstOrNull { it.name.equals(name, true) }?.let { screen.value = it } }
-        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("shift")) {
+        val debug = applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        if (debug && intent.hasExtra("shift")) {
             debugShiftSeconds = intent.getLongExtra("shift", 0L)
             model.now = Instant.now().plusSeconds(debugShiftSeconds)
+        }
+        if (debug) intent.getStringExtra("toast")?.let { model.toast = it }
+        val simulate = intent.getStringExtra("simulate")
+        if (debug && simulate != null) {
+            val delayMs = intent.getIntExtra("delay", 0) * 1000L
+            app.scope.launch { delay(delayMs); MatchAlerts.simulate(app, simulate) }
         }
     }
 
@@ -113,17 +139,37 @@ class MainActivity : ComponentActivity() {
                         Screen.MATCHES -> MatchesPage(theme.style, model, nav)
                         Screen.SETTINGS -> SettingsPage(theme.style, model, nav)
                     }
-                    if (screen.value == Screen.HOME) {
+                    if (screen.value == Screen.HOME && model.keepPlaying == null) {
                         LaunchedEffect(homeTick.intValue, model.themeIndex, model.pinned.size) {
                             delay(60)
                             runCatching { first.requestFocus() }
                         }
+                    }
+                    model.toast?.let { msg ->
+                        ToastBar(theme.style, msg, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
+                        LaunchedEffect(msg) { delay(3500); model.toast = null }
+                    }
+                    model.keepPlaying?.let { title ->
+                        KeepPlayingDialog(theme.style, title, onKeep = { answerKeepPlaying(pause = false) }, onPause = { answerKeepPlaying(pause = true) })
                     }
                 }
             }
         }
         BackHandler(enabled = screen.value != Screen.HOME) { nav.home() }
         BackHandler(enabled = screen.value == Screen.HOME) { /* the launcher has nowhere to go back to */ }
+        // registered last, so it wins while the question is showing: Back = keep playing
+        BackHandler(enabled = model.keepPlaying != null) { answerKeepPlaying(pause = false) }
+    }
+
+    private fun answerKeepPlaying(pause: Boolean) {
+        model.keepPlaying = null
+        Quran.send(this, if (pause) Quran.PAUSE else Quran.KEEP_PLAYING)
+        if (screen.value == Screen.HOME) homeTick.intValue++ // focus back on the first app
+    }
+
+    private fun openQuran() {
+        val i = Quran.launchIntent(this)
+        if (i == null || runCatching { startActivity(i) }.isFailure) model.toast = "Quran Reader isn't installed"
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
@@ -147,11 +193,16 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         App.homeVisible = true
+        Quran.send(this, Quran.HOME_SHOWN)
+        // the TV's settings app may have switched the screensaver back on
+        Screensaver.apply(this, app.prefs.screensaverOff)
     }
 
     override fun onStop() {
         super.onStop()
         App.homeVisible = false
+        Quran.send(this, Quran.HOME_HIDDEN)
+        model.keepPlaying = null // a question left unanswered isn't asked again later
     }
 
     private fun launchApp(a: AppEntry) {
