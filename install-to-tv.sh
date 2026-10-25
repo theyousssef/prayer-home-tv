@@ -18,8 +18,11 @@ adb -s "$TV" install -r "$APK"
 # compile ahead-of-time so the launcher opens instantly
 adb -s "$TV" shell cmd package compile -m speed -f com.prayerhome.tv >/dev/null
 
-# banner over other apps when the 10-minute chime fires
+# banners over other apps (the chime, and match kick-offs and goals)
 adb -s "$TV" shell appops set com.prayerhome.tv SYSTEM_ALERT_WINDOW allow
+
+# lets Prayer Home switch the TV's screensaver off (Settings → Screensaver)
+adb -s "$TV" shell pm grant com.prayerhome.tv android.permission.WRITE_SECURE_SETTINGS
 
 # Google TV ignores third-party home apps while its own launcher (and the setup
 # "recovery" home) are enabled, so they are switched off. Undo: see README.md.

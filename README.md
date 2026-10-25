@@ -2,11 +2,14 @@
 
 A lightweight home screen (launcher) for Google TV / Android TV, built around the prayer day:
 
-- clock, English date and the Hijri date in Arabic
-- the day's prayer times, with a countdown to the next one that turns red in the last 10 minutes
-- a chime 10 minutes before each prayer, even while you're watching another app
-- your football teams' matches with club badges, live minute and score
+- clock, English date and the Hijri date, in Arabic or English
+- the day's prayer times, with a countdown to the next one that turns red when the chime is due
+- a chime 5–30 minutes (default 10) before each prayer, even while you're watching another app
+- your football teams' matches with club badges, live minute and score, plus silent kick-off and
+  goal banners over other apps
+- a Quran button that opens the companion **Quran Reader** app, which can keep reciting on Home
 - three pinned apps on Home, everything else on an Apps page
+- keeps the TV's screensaver from covering the prayer screen
 - ten themes, switchable from Settings
 
 Made for and tested on a TCL Google TV (Android 14). It should work on other Google TV and
@@ -35,6 +38,7 @@ and the TV on the same network.
    adb connect $TV
    adb -s $TV install -r prayer-home.apk
    adb -s $TV shell appops set com.prayerhome.tv SYSTEM_ALERT_WINDOW allow
+   adb -s $TV shell pm grant com.prayerhome.tv android.permission.WRITE_SECURE_SETTINGS
    adb -s $TV shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
    adb -s $TV shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
    adb -s $TV shell cmd package set-home-activity com.prayerhome.tv/.MainActivity
@@ -42,6 +46,10 @@ and the TV on the same network.
 
 Google TV ignores other home apps while its own launcher, and its setup app's fallback home
 screen, are enabled, so both are switched off. Undo below.
+
+`SYSTEM_ALERT_WINDOW` lets the chime and match banners show over other apps. `WRITE_SECURE_SETTINGS`
+lets Prayer Home switch the screensaver off (Settings → Screensaver); without it that setting does
+nothing.
 
 > **Wi‑Fi warning.** If your Wi‑Fi network was saved during the TV's first-time setup, switching off
 > the setup app (`setupwraith`) can make the TV forget it. Your adb connection then drops. If that
@@ -69,9 +77,10 @@ adb -s $TV uninstall com.prayerhome.tv   # optional
 
 | Where | Remote |
 |---|---|
-| Home | Arrows move, OK opens. The matches panel opens the Matches page. The small **Settings** button under *All apps* opens Settings. |
+| Home | Arrows move, OK opens. The matches panel opens the Matches page. Under *All apps* are two small buttons: **Quran** opens the Quran Reader app and **Settings** opens Settings. |
 | All apps | OK opens an app. **Hold OK** pins or unpins it (Home shows 3). |
-| Settings | ◀ ▶ change a value, OK selects. Theme (OK opens a picker with previews), location, calculation method, Asr, per-prayer minute offsets, Hijri ±days, chime on/off/volume, teams. |
+| Matches | The **Notifications** button in the header turns kick-off and goal banners on or off. OK on a match mutes or unmutes just that match; a small red dot marks a match that differs from the header setting. |
+| Settings | ◀ ▶ change a value, OK selects. Theme (OK opens a picker with previews), Arabic or English prayer names and Hijri date, location, calculation method, Asr, per-prayer minute offsets, Hijri ±days, chime on/off, chime time (5, 10, 15, 20 or 30 minutes before), chime volume (20–100 % of the TV's volume), match notifications, teams, screensaver. |
 | Anywhere | Back returns to Home. The Home button always returns to Home. |
 
 The defaults are Giza, Egypt, and the Egyptian General Authority of Survey method. Change the
@@ -87,12 +96,30 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   timezone database, so DST changes apply automatically, including a countdown that runs across
   the switch. The alarm re-arms itself after reboots and time or timezone changes.
 - **Hijri date** uses Umm al-Qura, with a ±2 day adjustment for local moon sighting.
-- **Chime.** One exact alarm fires 10 minutes before the next prayer. It plays over other apps,
-  lowering their sound, and shows a small banner. It stays silent while the TV is in standby.
+- **Chime.** One exact alarm fires before the next prayer (10 minutes unless changed in Settings);
+  the countdown turns red at the same moment. It plays over other apps, lowering their sound, and
+  shows a small banner. Its volume is a percentage of the TV's current volume. It stays silent while
+  the TV is in standby.
 - **Football.** Data comes from LiveScore's public JSON feed: free, no key, and unofficial, so it
   could change. Fixtures from yesterday to a week ahead refresh every 2 hours. While Home is
-  visible and one of your teams is playing, the live score is checked every 15 seconds. Nothing
-  is checked while you're in another app.
+  visible and one of your teams is playing, the live score is checked every 15 seconds.
+- **Match notifications.** While you're in another app, a chain of exact alarms checks the small
+  live feed every 30 seconds, from 5 minutes before one of your teams kicks off until the final
+  whistle, and only for matches whose notifications are on. A kick-off or a goal shows a silent
+  banner in the corner, like the chime's. Nothing is scheduled when no match is near, except a
+  fixture refresh every 6 hours, and the alarms never wake a TV in standby. Each match's last seen
+  score is kept, so the first load, or catching up after standby, doesn't announce old goals.
+- **Screensaver.** With Settings → Screensaver Off (the default), Prayer Home sets Android's
+  `screensaver_enabled`, `screensaver_activate_on_sleep` and `screensaver_activate_on_dock` to 0 when
+  it starts and whenever Home appears. That covers Google's Backdrop and TCL's own gallery
+  screensaver, which are both Android "dreams". Nothing keeps the screen on, so the TV still
+  sleeps on its own timers; without a screensaver, Android turns the screen off when the idle time
+  that used to start the screensaver runs out (10 minutes on the test TV). Switching back to On
+  restores the TV's own values.
+- **Quran Reader.** The Quran button opens `com.prayerhome.quran`, or says it isn't installed.
+  Home tells the reader when it is shown or hidden; when you leave the reader while it's reciting,
+  it asks back, and Home shows *Keep reciting on the Home screen?* with **Keep playing** and
+  **Pause** (Back keeps playing). The reader stays in the All apps list too, so it can be pinned.
 - **Footprint.** About a 5 MB APK and about 60 MB of memory.
 
 ## Build
@@ -112,8 +139,16 @@ Preview helpers:
 adb shell am start -n com.prayerhome.tv/.MainActivity --ei theme 3 --es screen apps
 ```
 
-`screen` can be `home`, `apps`, `matches` or `settings`. Debug builds also accept
-`--el shift <seconds>` to preview another time of day, for example the red last-10-minutes state.
+`screen` can be `home`, `apps`, `matches` or `settings`; `--es lang en` (or `ar`) switches the
+language. Debug builds also accept `--el shift <seconds>` to preview another time of day, for
+example the red phase before a prayer, `--es simulate kickoff` (or `goal`) with an optional
+`--ei delay <seconds>` to fire a match banner after you've opened another app, and `--es toast <text>`.
+
+To try the chime and its banner without waiting for a prayer:
+
+```sh
+adb shell am broadcast -n com.prayerhome.tv/.alarm.ChimeReceiver -a com.prayerhome.tv.CHIME --es prayer ASR
+```
 
 ## Credits
 
