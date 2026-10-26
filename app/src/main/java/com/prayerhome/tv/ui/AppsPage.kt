@@ -39,12 +39,12 @@ import kotlinx.coroutines.delay
 
 /** Page chrome shared by Apps, Matches and Settings: back pill, title, next-prayer chip and clock. */
 @Composable
-fun PageHeader(s: PageStyle, m: HomeModel, title: String, nav: Nav, backFocus: FocusRequester? = null, extra: @Composable () -> Unit = {}) {
+fun PageHeader(s: PageStyle, m: HomeModel, title: String, nav: Nav, backFocus: FocusRequester? = null, backLabel: String = "Home", extra: @Composable () -> Unit = {}) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Pill(s, focusRequester = backFocus, onClick = nav.home) { focused ->
             Icon(Ico.BACK, if (focused) s.accent else s.muted, 22)
             Spacer(Modifier.width(10.dp))
-            T("Home", s.body, 22, if (focused) s.text else s.muted)
+            T(backLabel, s.body, 22, if (focused) s.text else s.muted)
         }
         Spacer(Modifier.width(28.dp))
         T(title, s.display, 72, s.text, weight = s.displayWeight)

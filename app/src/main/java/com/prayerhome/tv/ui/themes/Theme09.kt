@@ -94,7 +94,7 @@ private fun Home09(m: HomeModel, nav: Nav, first: FocusRequester) {
                         Box(Modifier.box(CARD, CHIP, 1.dp, RoundedCornerShape(999.dp)).padding(horizontal = 18.dp, vertical = 8.dp)) { T(t.name, Fonts.Barlow, 20, INK) }
                     }
                     if (app.prefs.teams.size > 3) T("+${app.prefs.teams.size - 3}", Fonts.Barlow, 20, MUTED)
-                    Focusable(onClick = nav.settings) { f ->
+                    Focusable(onClick = nav.teams) { f ->
                         Box(
                             Modifier.let { if (f) it.box(CARD_HI, GOLD, 2.dp, RoundedCornerShape(999.dp)) else it.dashed(hex(0x5B6D64), 999.dp) }
                                 .padding(horizontal = 18.dp, vertical = 8.dp),

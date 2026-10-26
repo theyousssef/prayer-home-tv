@@ -25,6 +25,8 @@ class Nav(
     val launch: (AppEntry) -> Unit,
     /** Opens the Quran Reader app. */
     val quran: () -> Unit = {},
+    /** Opens the Matches page on its team list. */
+    val teams: () -> Unit = matches,
 )
 
 /**

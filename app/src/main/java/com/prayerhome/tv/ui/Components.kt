@@ -274,6 +274,8 @@ object Ico {
     /** An open mushaf resting on a rehal (folding X stand), with a small star above the spine. */
     const val MUSHAF = "M12 8C10 6.8 7.2 6.4 3.5 6.8V15.8C7.2 15.4 10 15.8 12 17 M12 8C14 6.8 16.8 6.4 20.5 6.8V15.8C16.8 15.4 14 15.8 12 17 M12 8V17 " +
         "M6.5 15.7L16.5 22 M17.5 15.7L7.5 22 M12 2l.8 1.2 1.2.8-1.2.8L12 6l-.8-1.2L10 4l1.2-.8z"
+    const val REFRESH = "M20 11a8 8 0 1 0-2.34 5.66 M20 4v7h-7"
+    const val PLUS = "M12 5v14 M5 12h14"
     const val BALL = "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 7l4.5 3.3-1.7 5.2H9.2l-1.7-5.2z M12 7V2.5 M16.5 10.3l4.3-1.4 M14.8 15.5l2.7 3.7 M9.2 15.5l-2.7 3.7 M7.5 10.3L3.2 8.9"
 }
 

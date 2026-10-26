@@ -81,10 +81,10 @@ adb -s $TV uninstall com.prayerhome.tv   # optional
 
 | Where | Remote |
 |---|---|
-| Home | Arrows move, OK opens. The matches panel opens the Matches page. Under *All apps* are two small buttons: **Quran** opens the Quran Reader app and **Settings** opens Settings. |
+| Home | Arrows move, OK opens. The matches panel opens the Matches page, even before any team is picked. Under *All apps* are two small buttons: **Quran** opens the Quran Reader app and **Settings** opens Settings. |
 | All apps | OK opens an app. **Hold OK** pins or unpins it (Home shows 3). |
-| Matches | The **Notifications** button in the header turns kick-off and goal banners on or off. OK on a match mutes or unmutes just that match; a small red dot marks a match that differs from the header setting. |
-| Settings | ◀ ▶ change a value, OK selects. Theme (OK opens a picker with previews), Arabic or English prayer names and Hijri date, location, calculation method, Asr, per-prayer minute offsets, Hijri ±days, chime on/off, chime time (5, 10, 15, 20 or 30 minutes before), chime volume (20–100 % of the TV's volume), match notifications, teams, screensaver. |
+| Matches | All the football settings are in the header (▲ from the matches, ◀ ▶ between buttons). **Notifications** turns kick-off and goal banners on or off for every match. **Teams** opens your team list with club badges: *Add a team* searches this week's fixtures, and OK twice on a team removes it. **Refresh** reloads the match data. OK on a match mutes or unmutes just that match; a small red dot marks a match that differs from the Notifications setting. With no teams yet, the page shows an *Add a team* button. Back closes the team list or search first. |
+| Settings | ◀ ▶ change a value, OK selects. Theme (OK opens a picker with previews), Arabic or English prayer names and Hijri date, location, calculation method, Asr, per-prayer minute offsets, Hijri ±days, chime on/off, chime time (5, 10, 15, 20 or 30 minutes before), chime volume (20–100 % of the TV's volume), banner over other apps, screensaver. A last row opens the Matches page, where the football settings are. |
 | Anywhere | Back returns to Home. The Home button always returns to Home. |
 
 The defaults are Giza, Egypt, and the Egyptian General Authority of Survey method. Change the

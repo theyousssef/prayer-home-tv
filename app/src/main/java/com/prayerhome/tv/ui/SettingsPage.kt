@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.view.KeyEvent as AndroidKeyEvent
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,35 +15,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.prayerhome.tv.App
 import com.prayerhome.tv.alarm.ChimePlayer
@@ -54,11 +45,6 @@ import com.prayerhome.tv.core.Cities
 import com.prayerhome.tv.core.Prayer
 import com.prayerhome.tv.core.Prefs
 import com.prayerhome.tv.core.Screensaver
-import com.prayerhome.tv.core.TeamRef
-import com.prayerhome.tv.football.LiveScore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private sealed interface Row_ {
     val key: String
@@ -73,10 +59,8 @@ fun SettingsPage(s: PageStyle, m: HomeModel, nav: Nav) {
     val app = App.of(ctx)
     val p = app.prefs
     var v by remember { mutableIntStateOf(0) }
-    var searching by remember { mutableStateOf(false) }
     var picking by remember { mutableStateOf(false) }
     val first = remember { FocusRequester() }
-    val scope = rememberCoroutineScope()
 
     fun changed(rescheduleChime: Boolean = false) {
         v++
@@ -85,10 +69,6 @@ fun SettingsPage(s: PageStyle, m: HomeModel, nav: Nav) {
 
     fun <T> cycle(list: List<T>, cur: T, d: Int): T = list[(list.indexOf(cur).coerceAtLeast(0) + d + list.size) % list.size]
 
-    if (searching) {
-        TeamSearch(s, m, onDone = { searching = false; v++ })
-        return
-    }
     if (picking) {
         ThemePicker(s, m, p.themeIndex.coerceIn(0, THEMES.size - 1),
             onPick = { i -> p.themeIndex = i; picking = false; v++ },
@@ -145,26 +125,14 @@ fun SettingsPage(s: PageStyle, m: HomeModel, nav: Nav) {
             }
         })
 
-        add(Header("MATCH NOTIFICATIONS"))
-        add(Choice("alerts", "Kick-off & goal banners for my teams", if (p.matchAlerts) "On" else "Off") { _ ->
-            setMatchAlerts(ctx, !p.matchAlerts); changed()
-        })
-
-        add(Header("MY TEAMS · OK TO REMOVE"))
-        for (t in p.teams) {
-            add(Action("team${t.id}", t.name, "Remove") {
-                p.teams = p.teams.filterNot { it.id == t.id }; changed()
-                scope.launch { app.matches.refreshAll() }
-            })
-        }
-        add(Action("addteam", "Add a team…", "Search") { searching = true })
-
         add(Header("SYSTEM"))
         val canWrite = Screensaver.canWrite(ctx)
         add(Choice("saver", "Screensaver", (if (p.screensaverOff) "Off" else "On (TV default)") + if (canWrite) "" else " · needs the adb grant in README") { _ ->
             p.screensaverOff = !p.screensaverOff; Screensaver.apply(ctx, p.screensaverOff); changed()
         })
-        add(Action("refresh", "Refresh match data", m.scoresStatus.ifEmpty { "OK" }) { scope.launch { app.matches.refreshAll() } })
+        add(Header("FOOTBALL"))
+        // Teams, match notifications and match refresh live on the Matches page now; this row just points there.
+        add(Action("football", "Football teams & match notifications", "Open the Matches page") { nav.matches() })
     }
 
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
@@ -214,95 +182,5 @@ private fun SettingRow(s: PageStyle, label: String, value: String, fr: FocusRequ
             T(value, s.body, 24, if (focused) s.accent else s.muted)
             if (onStep != null && focused) { Spacer(Modifier.width(12.dp)); Icon(Ico.NEXT, s.accent, 22) }
         }
-    }
-}
-
-@Composable
-private fun TeamSearch(s: PageStyle, m: HomeModel, onDone: () -> Unit) {
-    val ctx = LocalContext.current
-    val app = App.of(ctx)
-    var query by remember { mutableStateOf("") }
-    var index by remember { mutableStateOf<List<LiveScore.TeamInfo>>(emptyList()) }
-    val field = remember { FocusRequester() }
-    val scope = rememberCoroutineScope()
-
-    BackHandler { onDone() }
-    LaunchedEffect(Unit) {
-        index = withContext(Dispatchers.IO) { app.matches.loadTeamIndex() }
-        runCatching { field.requestFocus() }
-    }
-    val have = app.prefs.teams.map { it.id }.toSet()
-    val q = query.trim().lowercase()
-    val results = if (q.length < 2) emptyList() else index.asSequence()
-        .filter { it.id !in have && it.name.lowercase().contains(q) }
-        .sortedWith(compareBy({ youthOrWomen(it.name) && !youthOrWomen(q) }, { !it.name.lowercase().startsWith(q) }, { it.name.length }))
-        .take(40).toList()
-
-    Box(Modifier.fillMaxSize().background(s.bg)) {
-        s.backdrop(this)
-        Column(Modifier.fillMaxSize().padding(horizontal = s.padX.dp, vertical = s.padY.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-            PageHeader(s, m, "Add a team", Nav(apps = {}, matches = {}, settings = {}, home = onDone, launch = {})) {
-                T("${index.size} teams from this week's fixtures", s.body, 22, s.muted)
-            }
-            Box(
-                Modifier.fillMaxWidth().height(86.dp).box(s.surface, s.accent, 2.dp, RoundedCornerShape(s.radius.dp)).padding(horizontal = 28.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                BasicTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    singleLine = true,
-                    textStyle = style(s.body, 34, s.text, 400, 0f, 0f, androidx.compose.ui.text.style.TextAlign.Start, false),
-                    cursorBrush = SolidColor(s.accent),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { }),
-                    modifier = Modifier.fillMaxWidth().focusRequester(field),
-                    decorationBox = { inner ->
-                        if (query.isEmpty()) T("Type a club name, e.g. Ahly, Juventus…", s.body, 34, s.muted)
-                        inner()
-                    },
-                )
-            }
-            LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(6.dp)) {
-                items(results, key = { it.id }) { t ->
-                    Focusable(Modifier.fillMaxWidth().height(84.dp), onClick = {
-                        app.prefs.teams = app.prefs.teams + TeamRef(t.id, t.name, t.img)
-                        scope.launch { app.matches.refreshAll() }
-                        onDone()
-                    }) { focused ->
-                        Row(
-                            Modifier.matchParentSize().box(if (focused) s.surfaceFocus else s.surface, if (focused) s.accent else s.border, if (focused) 2.dp else 1.dp, RoundedCornerShape(s.radius.dp)).padding(horizontal = 24.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (t.img.isNotEmpty()) TeamLogo(com.prayerhome.tv.football.Side(t.id, t.name, "", t.img), 52)
-                            else Box(Modifier.size(52.dp).box(s.surfaceFocus, s.border, 1.dp, CircleShape), contentAlignment = Alignment.Center) {
-                                // LiveScore has no badge for some (mostly amateur) clubs: show their initial instead.
-                                T(t.name.take(1).uppercase(), s.body, 24, s.muted)
-                            }
-                            Spacer(Modifier.width(20.dp))
-                            T(t.name, s.body, 28, s.text)
-                            Spacer(Modifier.width(16.dp))
-                            T(t.country, s.body, 22, s.muted)
-                            Spacer(Modifier.weight(1f))
-                            if (focused) T("OK to add", s.body, 22, s.accent)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun youthOrWomen(n: String) = Regex("""\b(U\d\d|W|II|B|Reserves|Youth)\b""", RegexOption.IGNORE_CASE).containsMatchIn(n)
-
-/**
- * Turns kick-off / goal banners on or off for every match without its own setting. Turning them on
- * without the "display over other apps" permission opens that settings screen, like the chime's row.
- */
-fun setMatchAlerts(ctx: android.content.Context, on: Boolean) {
-    App.prefs(ctx).matchAlerts = on
-    com.prayerhome.tv.football.MatchWatch.schedule(ctx)
-    if (on && !Settings.canDrawOverlays(ctx)) runCatching {
-        ctx.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${ctx.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }

@@ -285,7 +285,15 @@ fun CountdownGroups(
 @Composable
 fun NoMatches(m: HomeModel, font: FontFamily, size: Int, color: Color) {
     val status = m.scoresStatus
-    T(if (status.isNotEmpty()) "$status — retrying" else "No matches for your teams this week", font, size, color)
+    val noTeams = com.prayerhome.tv.App.prefs(androidx.compose.ui.platform.LocalContext.current).teams.isEmpty()
+    T(
+        when {
+            noTeams -> "No teams yet · OK here to add some"
+            status.isNotEmpty() -> "$status — retrying"
+            else -> "No matches for your teams this week"
+        },
+        font, size, color,
+    )
 }
 
 /** "● LIVE 67'" pill, or "FT", or the kickoff time. */

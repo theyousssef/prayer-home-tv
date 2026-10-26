@@ -1,5 +1,9 @@
 package com.prayerhome.tv.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -37,46 +44,115 @@ import com.prayerhome.tv.ui.themes.TeamLogoSafe
 import java.time.Duration
 import java.time.Instant
 
+/** What the Matches page shows on top of the match list. Back steps out of these one at a time. */
+enum class MatchesPanel { NONE, TEAMS, SEARCH }
+
 /**
  * Your teams' matches from the last 24 hours and the next 24 hours, plus the three shown on Home.
- * The header's bell turns kick-off / goal banners on or off; OK on a match mutes or unmutes just that one.
+ * Every football setting lives in the header: the bell turns kick-off / goal banners on or off for all
+ * matches, Teams opens the team list (add / remove), Refresh reloads the fixtures. OK on a match mutes or
+ * unmutes just that one.
  */
 @Composable
-fun MatchesPage(s: PageStyle, m: HomeModel, nav: Nav) {
+fun MatchesPage(s: PageStyle, m: HomeModel, nav: Nav, startPanel: MatchesPanel = MatchesPanel.NONE) {
     val ctx = LocalContext.current
-    val prefs = App.prefs(ctx)
+    val app = App.of(ctx)
+    val prefs = app.prefs
+    var panel by remember { mutableStateOf(startPanel) }
+    // Composed only while a panel is open, so it is registered after (and wins over) the activity's
+    // "Back goes Home" handler even when the page was the first thing shown.
+    if (panel != MatchesPanel.NONE) BackHandler {
+        panel = if (panel == MatchesPanel.SEARCH) MatchesPanel.TEAMS else MatchesPanel.NONE
+    }
+    when (panel) {
+        MatchesPanel.SEARCH -> { TeamSearch(s, m, onDone = { panel = MatchesPanel.TEAMS }); return }
+        MatchesPanel.TEAMS -> { TeamsScreen(s, m, onBack = { panel = MatchesPanel.NONE }, onAdd = { panel = MatchesPanel.SEARCH }); return }
+        MatchesPanel.NONE -> {}
+    }
+
     // bumped on every toggle so the rows re-read their setting
     var v by remember { mutableIntStateOf(0) }
+    var refreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val first = remember { FocusRequester() }
-    val back = remember { FocusRequester() }
+    val teamsPill = remember { FocusRequester() }
+    val addFirst = remember { FocusRequester() }
+    val teams = prefs.teams
     val all = m.windowMatches
     val now = Instant.now()
     val live = all.filter { it.isLive }
     val earlier = all.filter { !it.isLive && it.kickoff <= now }.sortedByDescending { it.kickoff }
     val soon = all.filter { !it.isLive && it.kickoff > now && it.kickoff <= now.plus(Duration.ofHours(24)) }
     val later = all.filter { !it.isLive && it.kickoff > now.plus(Duration.ofHours(24)) }
-    val sections = listOf("LIVE NOW" to live, "NEXT 24 HOURS" to soon, "LAST 24 HOURS" to earlier, "COMING UP" to later).filter { it.second.isNotEmpty() }
+    val sections = if (teams.isEmpty()) emptyList() else
+        listOf("LIVE NOW" to live, "NEXT 24 HOURS" to soon, "LAST 24 HOURS" to earlier, "COMING UP" to later).filter { it.second.isNotEmpty() }
     val firstId = sections.firstOrNull()?.second?.firstOrNull()?.id
 
-    LaunchedEffect(firstId == null) { runCatching { if (firstId != null) first.requestFocus() else back.requestFocus() } }
+    // Focus the first match; with no matches the Teams button (or, with no teams at all, "Add a team").
+    LaunchedEffect(firstId == null, teams.isEmpty()) {
+        runCatching {
+            when {
+                firstId != null -> first.requestFocus()
+                teams.isEmpty() -> addFirst.requestFocus()
+                else -> teamsPill.requestFocus()
+            }
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(s.bg)) {
         s.backdrop(this)
         Column(Modifier.fillMaxSize().padding(horizontal = s.padX.dp, vertical = s.padY.dp), verticalArrangement = Arrangement.spacedBy(26.dp)) {
-            PageHeader(s, m, "Matches", nav, backFocus = back) {
+            PageHeader(s, m, "Matches", nav) {
                 v
                 val on = prefs.matchAlerts
-                Pill(s, onClick = { setMatchAlerts(ctx, !on); v++ }) { focused ->
-                    Icon(if (on) Ico.BELL else Ico.BELL_OFF, if (focused || on) s.accent else s.muted, 22)
-                    Spacer(Modifier.width(10.dp))
-                    T(if (on) "Notifications on" else "Notifications off", s.body, 22, if (focused) s.text else s.muted)
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    // the one global switch for kick-off / goal banners (per-match mutes override it)
+                    Pill(s, onClick = { setMatchAlerts(ctx, !on); v++ }) { focused ->
+                        Icon(if (on) Ico.BELL else Ico.BELL_OFF, if (focused || on) s.accent else s.muted, 22)
+                        Spacer(Modifier.width(10.dp))
+                        T(if (on) "Notifications on" else "Notifications off", s.body, 22, if (focused) s.text else s.muted)
+                    }
+                    Pill(s, focusRequester = teamsPill, onClick = { panel = MatchesPanel.TEAMS }) { focused ->
+                        Icon(Ico.BALL, if (focused) s.accent else s.muted, 22)
+                        Spacer(Modifier.width(10.dp))
+                        T("Teams · ${teams.size}", s.body, 22, if (focused) s.text else s.muted)
+                    }
+                    Pill(s, onClick = {
+                        if (!refreshing) {
+                            refreshing = true
+                            scope.launch {
+                                app.matches.refreshAll()
+                                refreshing = false
+                                m.toast = app.matches.status.value.ifEmpty { "Match data updated" }
+                            }
+                        }
+                    }) { focused ->
+                        Icon(Ico.REFRESH, if (focused) s.accent else s.muted, 22)
+                        Spacer(Modifier.width(10.dp))
+                        T(if (refreshing) "Refreshing…" else "Refresh", s.body, 22, if (focused) s.text else s.muted)
+                    }
                 }
-                Spacer(Modifier.width(20.dp))
-                T("Last 24 h · next 24 h", s.body, 22, s.muted)
             }
             if (sections.isEmpty()) {
-                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    T(if (m.scoresStatus.isNotEmpty()) "${m.scoresStatus} — retrying every minute" else "None of your teams play within 24 hours", s.body, 30, s.muted)
+                Column(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    val msg = when {
+                        teams.isEmpty() -> "You haven't picked any teams yet"
+                        m.scoresStatus.isNotEmpty() -> "${m.scoresStatus} — retrying every minute"
+                        else -> "None of your teams play within 24 hours"
+                    }
+                    T(msg, s.body, 30, s.muted)
+                    if (teams.isEmpty()) {
+                        Spacer(Modifier.height(30.dp))
+                        Pill(s, focusRequester = addFirst, onClick = { panel = MatchesPanel.SEARCH }) { focused ->
+                            Icon(Ico.PLUS, s.accent, 24)
+                            Spacer(Modifier.width(10.dp))
+                            T("Add a team", s.body, 26, if (focused) s.text else s.muted)
+                        }
+                    }
                 }
             } else {
                 LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(vertical = 6.dp, horizontal = 6.dp)) {
@@ -98,6 +174,18 @@ fun MatchesPage(s: PageStyle, m: HomeModel, nav: Nav) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Turns kick-off / goal banners on or off for every match without its own setting. Turning them on
+ * without the "display over other apps" permission opens that settings screen.
+ */
+fun setMatchAlerts(ctx: android.content.Context, on: Boolean) {
+    App.prefs(ctx).matchAlerts = on
+    MatchWatch.schedule(ctx)
+    if (on && !Settings.canDrawOverlays(ctx)) runCatching {
+        ctx.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${ctx.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
 

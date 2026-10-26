@@ -12,12 +12,12 @@ import androidx.compose.ui.unit.dp
 
 /** A short message near the bottom of the screen, e.g. "Quran Reader isn't installed". */
 @Composable
-fun ToastBar(s: PageStyle, text: String, modifier: Modifier = Modifier) {
+fun ToastBar(s: PageStyle, text: String, modifier: Modifier = Modifier, icon: String = Ico.MUSHAF) {
     Row(
         modifier.box(s.surface, s.accent, 1.dp, RoundedCornerShape(999.dp)).padding(horizontal = 34.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Ico.MUSHAF, s.accent, 30, stroke = 1.5f)
+        Icon(icon, s.accent, 30, stroke = 1.5f)
         Spacer(Modifier.width(16.dp))
         T(text, s.body, 26, s.text)
     }

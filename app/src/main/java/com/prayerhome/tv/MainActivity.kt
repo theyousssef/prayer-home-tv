@@ -53,6 +53,8 @@ class MainActivity : ComponentActivity() {
     private val app get() = App.of(this)
     private lateinit var model: HomeModel
     private val screen = mutableStateOf(Screen.HOME)
+    /** What the Matches page opens on (its team list when reached from a theme's "Edit teams"). */
+    private var matchesStart = com.prayerhome.tv.ui.MatchesPanel.NONE
     /** Bumped whenever Home is pressed, to put focus back on the first app. */
     private val homeTick = mutableIntStateOf(0)
 
@@ -78,11 +80,12 @@ class MainActivity : ComponentActivity() {
 
         val nav = Nav(
             apps = { screen.value = Screen.APPS },
-            matches = { screen.value = Screen.MATCHES },
+            matches = { matchesStart = com.prayerhome.tv.ui.MatchesPanel.NONE; screen.value = Screen.MATCHES },
             settings = { screen.value = Screen.SETTINGS },
             home = { screen.value = Screen.HOME; homeTick.intValue++ },
             launch = ::launchApp,
             quran = ::openQuran,
+            teams = { matchesStart = com.prayerhome.tv.ui.MatchesPanel.TEAMS; screen.value = Screen.MATCHES },
         )
         setContent { Root(nav) }
         handleExtras(intent)
@@ -127,7 +130,7 @@ class MainActivity : ComponentActivity() {
                     when (screen.value) {
                         Screen.HOME -> theme.home(model, nav, first)
                         Screen.APPS -> AppsPage(theme.style, model, nav)
-                        Screen.MATCHES -> MatchesPage(theme.style, model, nav)
+                        Screen.MATCHES -> MatchesPage(theme.style, model, nav, matchesStart)
                         Screen.SETTINGS -> SettingsPage(theme.style, model, nav)
                     }
                     if (screen.value == Screen.HOME) {
@@ -137,7 +140,10 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     model.toast?.let { msg ->
-                        ToastBar(theme.style, msg, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp))
+                        ToastBar(
+                            theme.style, msg, Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp),
+                            icon = if (screen.value == Screen.MATCHES) com.prayerhome.tv.ui.Ico.BALL else com.prayerhome.tv.ui.Ico.MUSHAF,
+                        )
                         LaunchedEffect(msg) { delay(3500); model.toast = null }
                     }
                 }
