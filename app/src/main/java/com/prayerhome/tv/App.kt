@@ -6,6 +6,7 @@ import com.prayerhome.tv.alarm.ChimeScheduler
 import com.prayerhome.tv.apps.AppRepo
 import com.prayerhome.tv.core.Prefs
 import com.prayerhome.tv.core.Screensaver
+import com.prayerhome.tv.football.Highlights
 import com.prayerhome.tv.football.Logos
 import com.prayerhome.tv.football.MatchRepo
 import com.prayerhome.tv.football.MatchWatch
@@ -18,6 +19,7 @@ class App : Application() {
     val matches by lazy { MatchRepo(this, prefs) }
     val apps by lazy { AppRepo(this) }
     val logos by lazy { Logos(this) }
+    val highlights by lazy { Highlights(this) }
     /** For short background work started by receivers. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

@@ -7,6 +7,8 @@ A lightweight home screen (launcher) for Google TV / Android TV, built around th
 - a chime 5–30 minutes (default 10) before each prayer, even while you're watching another app
 - your football teams' matches with club badges, live minute and score, plus silent kick-off and
   goal banners over other apps
+- highlights for a finished match: its mute button turns into a video button, and the longest
+  YouTube highlights from the competitions', clubs' and broadcasters' channels play in the YouTube app
 - a Quran button that opens the companion **[Quran Reader](https://github.com/theyousssef/quran-reader-tv)** app (a separate app; Prayer Home only opens it)
 - three pinned apps on Home, everything else on an Apps page
 - keeps the TV's screensaver from covering the prayer screen
@@ -83,7 +85,7 @@ adb -s $TV uninstall com.prayerhome.tv   # optional
 |---|---|
 | Home | Arrows move, OK opens. The matches panel opens the Matches page, even before any team is picked. Under *All apps* are two small buttons: **Quran** opens the Quran Reader app and **Settings** opens Settings. |
 | All apps | OK opens an app. **Hold OK** pins or unpins it (Home shows 3). |
-| Matches | All the football settings are in the header (▲ from the matches, ◀ ▶ between buttons). **Notifications** turns kick-off and goal banners on or off for every match. **Teams** opens your team list with club badges: *Add a team* searches this week's fixtures, and OK twice on a team removes it. **Refresh** reloads the match data. OK on a match mutes or unmutes just that match; a small red dot marks a match that differs from the Notifications setting. With no teams yet, the page shows an *Add a team* button. Back closes the team list or search first. |
+| Matches | All the football settings are in the header (▲ from the matches, ◀ ▶ between buttons). **Notifications** turns kick-off and goal banners on or off for every match. **Teams** opens your team list with club badges: *Add a team* searches this week's fixtures, and OK twice on a team removes it. **Refresh** reloads the match data. OK on a match mutes or unmutes just that match; a small red dot marks a match that differs from the Notifications setting. Once a match has ended its bell becomes **Highlights**: OK opens up to three YouTube highlight videos, longest first, from the competitions', clubs' and broadcasters' official channels only (beIN SPORTS, AD Sports, TOD, MBC Action, Sports United, ON Sport, and Kora Plus for Egyptian football), in Arabic and English; OK on a video plays it in the TV's YouTube app. With no teams yet, the page shows an *Add a team* button. Back closes the highlights, team list or search first. |
 | Settings | ◀ ▶ change a value, OK selects. Theme (OK opens a picker with previews), Arabic or English prayer names and Hijri date, location, calculation method, Asr, per-prayer minute offsets, Hijri ±days, chime on/off, chime time (5, 10, 15, 20 or 30 minutes before), chime volume (20–100 % of the TV's volume), banner over other apps, screensaver. A last row opens the Matches page, where the football settings are. |
 | Anywhere | Back returns to Home. The Home button always returns to Home. |
 
@@ -105,8 +107,20 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   shows a small banner. Its volume is a percentage of the TV's current volume. It stays silent while
   the TV is in standby.
 - **Football.** Data comes from LiveScore's public JSON feed: free, no key, and unofficial, so it
-  could change. Fixtures from yesterday to a week ahead refresh every 2 hours. While Home is
-  visible and one of your teams is playing, the live score is checked every 15 seconds.
+  could change. Fixtures from two days ago to a week ahead refresh every 2 hours. The Matches page
+  lists the last 48 hours and the next 24. While Home is visible and one of your teams is playing,
+  the live score is checked every 15 seconds.
+- **Highlights.** For a finished match the Matches page searches YouTube for its highlights, with
+  no API key: a normal results page in English and in Arabic (club names are translated, with a
+  built-in list for the common clubs, and cached). A video is kept only when it comes from an
+  official channel — a competition or club channel, beIN SPORTS, AD Sports, TOD, MBC Action,
+  Sports United, ON Sport, or Kora Plus for Egyptian football — and when the title names both clubs
+  (in either language), the score doesn't contradict it, the season matches, and it was uploaded
+  after kick-off. That recognises uploads with different naming styles while dropping last season's
+  meeting of the same two clubs and fan re-uploads. If the two ordinary searches don't already
+  give three videos, the search is repeated inside beIN SPORTS, AD Sports, TOD and Kora Plus, so
+  the common case costs two pages. The three longest are shown, cached for 12 hours (15 minutes when
+  nothing was found, so late uploads appear), and play directly in the TV's own YouTube app.
 - **Match notifications.** While you're in another app, a chain of exact alarms checks the small
   live feed every 30 seconds, from 5 minutes before one of your teams kicks off until the final
   whistle, and only for matches whose notifications are on. A kick-off or a goal shows a silent

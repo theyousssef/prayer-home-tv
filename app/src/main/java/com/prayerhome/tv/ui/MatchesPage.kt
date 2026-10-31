@@ -48,10 +48,10 @@ import java.time.Instant
 enum class MatchesPanel { NONE, TEAMS, SEARCH }
 
 /**
- * Your teams' matches from the last 24 hours and the next 24 hours, plus the three shown on Home.
+ * Your teams' matches from the last 48 hours and the next 24 hours, plus the three shown on Home.
  * Every football setting lives in the header: the bell turns kick-off / goal banners on or off for all
  * matches, Teams opens the team list (add / remove), Refresh reloads the fixtures. OK on a match mutes or
- * unmutes just that one.
+ * unmutes just that one, or — once the match has ended — opens its YouTube highlights.
  */
 @Composable
 fun MatchesPage(s: PageStyle, m: HomeModel, nav: Nav, startPanel: MatchesPanel = MatchesPanel.NONE) {
@@ -59,6 +59,16 @@ fun MatchesPage(s: PageStyle, m: HomeModel, nav: Nav, startPanel: MatchesPanel =
     val app = App.of(ctx)
     val prefs = app.prefs
     var panel by remember { mutableStateOf(startPanel) }
+    // The finished match whose highlights are open; Back returns to the match list.
+    var watching by remember { mutableStateOf<Match?>(null) }
+    var restoreId by remember { mutableStateOf<String?>(null) }
+    var focusTick by remember { mutableIntStateOf(0) }
+    if (watching != null) {
+        // Registered after the activity's "Back goes Home" handler, so Back closes the highlights first.
+        BackHandler { watching = null; focusTick++ }
+        HighlightsScreen(s, m, watching!!, onBack = { watching = null; focusTick++ })
+        return
+    }
     // Composed only while a panel is open, so it is registered after (and wins over) the activity's
     // "Back goes Home" handler even when the page was the first thing shown.
     if (panel != MatchesPanel.NONE) BackHandler {
@@ -74,9 +84,11 @@ fun MatchesPage(s: PageStyle, m: HomeModel, nav: Nav, startPanel: MatchesPanel =
     var v by remember { mutableIntStateOf(0) }
     var refreshing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val first = remember { FocusRequester() }
     val teamsPill = remember { FocusRequester() }
     val addFirst = remember { FocusRequester() }
+    // one requester per row, so closing the highlights brings focus back to the match you opened
+    val rowReqs = remember { HashMap<String, FocusRequester>() }
+    fun rowReq(id: String) = rowReqs.getOrPut(id) { FocusRequester() }
     val teams = prefs.teams
     val all = m.windowMatches
     val now = Instant.now()
@@ -85,14 +97,17 @@ fun MatchesPage(s: PageStyle, m: HomeModel, nav: Nav, startPanel: MatchesPanel =
     val soon = all.filter { !it.isLive && it.kickoff > now && it.kickoff <= now.plus(Duration.ofHours(24)) }
     val later = all.filter { !it.isLive && it.kickoff > now.plus(Duration.ofHours(24)) }
     val sections = if (teams.isEmpty()) emptyList() else
-        listOf("LIVE NOW" to live, "NEXT 24 HOURS" to soon, "LAST 24 HOURS" to earlier, "COMING UP" to later).filter { it.second.isNotEmpty() }
+        listOf("LIVE NOW" to live, "NEXT 24 HOURS" to soon, "LAST 48 HOURS" to earlier, "COMING UP" to later).filter { it.second.isNotEmpty() }
     val firstId = sections.firstOrNull()?.second?.firstOrNull()?.id
 
     // Focus the first match; with no matches the Teams button (or, with no teams at all, "Add a team").
-    LaunchedEffect(firstId == null, teams.isEmpty()) {
+    // After the highlights close, focus goes back to the row that was opened.
+    LaunchedEffect(focusTick, firstId == null, teams.isEmpty()) {
         runCatching {
+            val back = restoreId
             when {
-                firstId != null -> first.requestFocus()
+                back != null -> { rowReq(back).requestFocus(); restoreId = null }
+                firstId != null -> rowReq(firstId).requestFocus()
                 teams.isEmpty() -> addFirst.requestFocus()
                 else -> teamsPill.requestFocus()
             }
@@ -142,7 +157,7 @@ fun MatchesPage(s: PageStyle, m: HomeModel, nav: Nav, startPanel: MatchesPanel =
                     val msg = when {
                         teams.isEmpty() -> "You haven't picked any teams yet"
                         m.scoresStatus.isNotEmpty() -> "${m.scoresStatus} — retrying every minute"
-                        else -> "None of your teams play within 24 hours"
+                        else -> "None of your teams have matches in the last 48 hours or the next 24 hours"
                     }
                     T(msg, s.body, 30, s.muted)
                     if (teams.isEmpty()) {
@@ -162,12 +177,18 @@ fun MatchesPage(s: PageStyle, m: HomeModel, nav: Nav, startPanel: MatchesPanel =
                             v
                             val override = prefs.matchAlertOverride(match.id)
                             val global = prefs.matchAlerts
-                            MatchRow(s, m, match, if (match.id == firstId) first else null, on = override ?: global, custom = override != null && override != global) {
-                                // two visible states; the override is dropped again when it matches the global setting
-                                val next = !(override ?: global)
-                                prefs.setMatchAlertOverride(match.id, match.kickoff.epochSecond, if (next == global) null else next)
-                                MatchWatch.schedule(ctx)
-                                v++
+                            val finished = match.state == MatchState.FINISHED
+                            MatchRow(s, m, match, rowReq(match.id), on = override ?: global, custom = !finished && override != null && override != global) {
+                                if (finished) {
+                                    restoreId = match.id
+                                    watching = match
+                                } else {
+                                    // two visible states; the override is dropped again when it matches the global setting
+                                    val next = !(override ?: global)
+                                    prefs.setMatchAlertOverride(match.id, match.kickoff.epochSecond, if (next == global) null else next)
+                                    MatchWatch.schedule(ctx)
+                                    v++
+                                }
                             }
                         }
                     }
@@ -190,8 +211,8 @@ fun setMatchAlerts(ctx: android.content.Context, on: Boolean) {
 }
 
 @Composable
-private fun MatchRow(s: PageStyle, m: HomeModel, match: Match, fr: FocusRequester?, on: Boolean, custom: Boolean, toggle: () -> Unit) {
-    Focusable(Modifier.fillMaxWidth().height(112.dp), onClick = toggle, focusRequester = fr) { focused ->
+private fun MatchRow(s: PageStyle, m: HomeModel, match: Match, fr: FocusRequester?, on: Boolean, custom: Boolean, onClick: () -> Unit) {
+    Focusable(Modifier.fillMaxWidth().height(112.dp), onClick = onClick, focusRequester = fr) { focused ->
         val live = match.isLive
         val border = if (focused) s.accent else if (live) s.red else s.border
         Row(
@@ -234,15 +255,18 @@ private fun MatchRow(s: PageStyle, m: HomeModel, match: Match, fr: FocusRequeste
                 }
             }
             Spacer(Modifier.width(24.dp))
-            AlertBell(s, on, custom, focused)
+            RowAction(s, match.state == MatchState.FINISHED, on, custom, focused)
         }
     }
 }
 
-/** The row's mute button: a bell (or struck-through bell), with a small dot when it differs from the page setting. */
+/**
+ * The row's action: a bell (or struck-through bell) muting just this match, or — once it has
+ * finished — the video sign that opens the match's YouTube highlights.
+ */
 @Composable
-private fun AlertBell(s: PageStyle, on: Boolean, custom: Boolean, focused: Boolean) {
-    Box(Modifier.size(width = 150.dp, height = 60.dp)) {
+private fun RowAction(s: PageStyle, finished: Boolean, on: Boolean, custom: Boolean, focused: Boolean) {
+    Box(Modifier.size(width = if (finished) 196.dp else 150.dp, height = 60.dp)) {
         Row(
             Modifier.matchParentSize().box(
                 if (focused) s.accent else androidx.compose.ui.graphics.Color.Transparent,
@@ -251,10 +275,19 @@ private fun AlertBell(s: PageStyle, on: Boolean, custom: Boolean, focused: Boole
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            val c = if (focused) s.bg else if (on) s.accent else s.muted
-            Icon(if (on) Ico.BELL else Ico.BELL_OFF, c, 22)
-            Spacer(Modifier.width(8.dp))
-            T(if (on) "On" else "Muted", s.body, 20, c, weight = 600)
+            val c = if (focused) s.bg else if (finished || on) s.accent else s.muted
+            when {
+                finished -> {
+                    Icon(Ico.VIDEO, c, 22)
+                    Spacer(Modifier.width(8.dp))
+                    T("Highlights", s.body, 20, c, weight = 600)
+                }
+                else -> {
+                    Icon(if (on) Ico.BELL else Ico.BELL_OFF, c, 22)
+                    Spacer(Modifier.width(8.dp))
+                    T(if (on) "On" else "Muted", s.body, 20, c, weight = 600)
+                }
+            }
         }
         if (custom) Box(Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 6.dp).size(12.dp).background(s.red, CircleShape))
     }

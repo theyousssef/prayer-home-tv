@@ -130,6 +130,8 @@ fun Ar(
     maxLines: Int = 1,
     /** Optional face for the digits only (some display faces draw hard-to-read numerals). */
     digits: FontFamily? = null,
+    /** Join words with no-break spaces (the default) so the Arabic shaping never splits a word. */
+    nbsp: Boolean = true,
     latin: FontFamily? = null,
     latinSize: Int = size,
     latinWeight: Int = weight,
@@ -142,7 +144,7 @@ fun Ar(
         return
     }
     if (digits != null) {
-        val t = text.replace(' ', '\u00A0')
+        val t = if (nbsp) text.replace(' ', '\u00A0') else text
         val annotated = androidx.compose.ui.text.buildAnnotatedString {
             append(t)
             var i = 0
@@ -161,7 +163,7 @@ fun Ar(
     BasicText(
         // No-break spaces keep Android from shaping each word on its own, which detaches
         // the swash tails some Arabic faces (Amiri's ى) hang into the following space.
-        text = text.replace(' ', '\u00A0'),
+        text = if (nbsp) text.replace(' ', '\u00A0') else text,
         modifier = modifier.lineBox(size, lineHeight),
         style = style(font, size, color, weight, 0f, 0f, align, false).copy(textDirection = TextDirection.Rtl),
         maxLines = maxLines,
@@ -271,6 +273,9 @@ object Ico {
     const val TACK = "M12 17v5 M9 3h6l-1 7 4 3H6l4-3z"
     const val GEAR = "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
     const val BELL_OFF = "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 0 0 3.4 0 M3 3l18 18"
+    /** A screen with a play triangle: watch highlights. */
+    const val VIDEO = "M3.5 6.5A2.5 2.5 0 0 1 6 4h12a2.5 2.5 0 0 1 2.5 2.5v11A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z M10 8.5l6 3.5-6 3.5z"
+    const val PLAY = "M8 5.3l11 6.7-11 6.7z"
     /** An open mushaf resting on a rehal (folding X stand), with a small star above the spine. */
     const val MUSHAF = "M12 8C10 6.8 7.2 6.4 3.5 6.8V15.8C7.2 15.4 10 15.8 12 17 M12 8C14 6.8 16.8 6.4 20.5 6.8V15.8C16.8 15.4 14 15.8 12 17 M12 8V17 " +
         "M6.5 15.7L16.5 22 M17.5 15.7L7.5 22 M12 2l.8 1.2 1.2.8-1.2.8L12 6l-.8-1.2L10 4l1.2-.8z"

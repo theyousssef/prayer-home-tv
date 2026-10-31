@@ -26,6 +26,17 @@
         </intent>
         <!-- the separate Quran Reader app, opened by the Quran button -->
         <package android:name="com.prayerhome.quran" />
+        <!-- match highlights play straight in the YouTube app -->
+        <package android:name="com.google.android.youtube.tv" />
+        <package android:name="com.google.android.youtube" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="vnd.youtube" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="www.youtube.com" />
+        </intent>
     </queries>
 
     <application

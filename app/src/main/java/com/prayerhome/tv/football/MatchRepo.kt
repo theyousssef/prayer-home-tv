@@ -84,7 +84,7 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
         val ids = prefs.teams.map { it.id }.toSet()
         val key = teamKey()
         val today = Instant.now().atZone(ZoneOffset.UTC).toLocalDate()
-        val days = (-1L..7L).map { today.plusDays(it) }
+        val days = (-2L..7L).map { today.plusDays(it) }
         try {
             val pages = coroutineScope {
                 days.map { d -> async(Dispatchers.IO) { LiveScore.day(d, ids, collectTeams = true) } }.awaitAll()
@@ -204,9 +204,9 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
             return picked.take(count).sortedWith(compareByDescending<Match> { it.isLive }.thenBy { it.kickoff })
         }
 
-        /** Matches page: everything within 24 h either side of now, plus the home-screen three. */
+        /** Matches page: the last 48 h and the next 24 h, plus the home-screen three. */
         fun window(all: List<Match>, now: Instant): List<Match> {
-            val from = now.minus(Duration.ofHours(24))
+            val from = now.minus(Duration.ofHours(48))
             val to = now.plus(Duration.ofHours(24))
             return (all.filter { it.kickoff in from..to } + closest(all, now)).distinctBy { it.id }.sortedBy { it.kickoff }
         }
