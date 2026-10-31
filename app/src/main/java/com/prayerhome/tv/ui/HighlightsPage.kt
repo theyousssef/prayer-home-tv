@@ -207,19 +207,22 @@ private fun ListText(text: String, s: PageStyle, size: Int, color: androidx.comp
 
 /**
  * Opens the video straight in the TV's own YouTube app (the one the user is signed in to), where
- * playback starts immediately. Nothing else is tried: no browser, no web search page.
+ * playback starts immediately. On Android TV the watch link is the one that really deep-links into
+ * the player; the vnd.youtube scheme only brings the app to the front there. Nothing else is tried:
+ * no browser, no web search page.
  */
 fun playInYouTube(ctx: Context, videoId: String): Boolean {
     val tvApp = "com.google.android.youtube.tv"
     val phoneApp = "com.google.android.youtube"
     val watch = Uri.parse("https://www.youtube.com/watch?v=$videoId")
+    val vnd = Uri.parse("vnd.youtube:$videoId")
     val attempts = listOf(
-        Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:$videoId")).setPackage(tvApp),
-        Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:$videoId")).setPackage(phoneApp),
         Intent(Intent.ACTION_VIEW, watch).setPackage(tvApp),
         Intent(Intent.ACTION_VIEW, watch).setPackage(phoneApp),
+        Intent(Intent.ACTION_VIEW, vnd).setPackage(tvApp),
+        Intent(Intent.ACTION_VIEW, vnd).setPackage(phoneApp),
         // still the YouTube app, just whichever one Android resolves for YouTube links
-        Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:$videoId")),
+        Intent(Intent.ACTION_VIEW, vnd),
     )
     for (i in attempts) {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
