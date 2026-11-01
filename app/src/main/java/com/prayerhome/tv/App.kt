@@ -11,6 +11,7 @@ import com.prayerhome.tv.football.Logos
 import com.prayerhome.tv.football.MatchRepo
 import com.prayerhome.tv.football.MatchWatch
 import com.prayerhome.tv.football.StandingsRepo
+import com.prayerhome.tv.update.SelfUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,6 +31,7 @@ class App : Application() {
         ChimeScheduler.schedule(this)
         MatchWatch.schedule(this)
         Screensaver.apply(this, prefs.screensaverOff)
+        SelfUpdater(this, "theyousssef/prayer-home-tv", BuildConfig.VERSION_NAME).start()
     }
 
     companion object {

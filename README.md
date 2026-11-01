@@ -163,6 +163,12 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   That is the only link between the two apps: they don't talk to each other. The reader itself asks
   whether to keep reciting when you leave it, and works the same with any launcher. The reader
   stays in the All apps list too, so it can be pinned.
+- **Updates.** Once a day Prayer Home asks this repository for its latest release. When the
+  release is newer than the installed version, it downloads the APK and installs it over itself
+  the next time Home isn't on screen (Android lets an app update itself without asking). Your
+  settings stay. If a TV still asks for permission, its install prompt shows the next time Home
+  opens. A release's tag is its version (`v1.6`) and it carries `prayer-home.apk`, signed with the
+  same key as the installed app.
 - **Footprint.** About a 5 MB APK and about 60 MB of memory.
 
 ## Build

@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- installs its own updates from the GitHub releases (update/SelfUpdater.kt) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <!-- turning the screensaver off; granted over adb (pm grant), never asked for -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
@@ -84,6 +87,10 @@
         <!-- kick-off / goal checks while a match is on (chained alarms) -->
         <receiver
             android:name=".football.MatchAlertReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".update.SelfUpdateReceiver"
             android:exported="false" />
     </application>
 </manifest>
