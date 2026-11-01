@@ -103,11 +103,7 @@ class MainActivity : ComponentActivity() {
         if (intent.hasExtra("theme")) app.prefs.themeIndex = intent.getIntExtra("theme", 0).coerceIn(0, THEMES.size - 1)
         intent.getStringExtra("lang")?.let { app.prefs.english = it == "en" }
         intent.getStringExtra("screen")?.let { name -> Screen.entries.firstOrNull { it.name.equals(name, true) }?.let { screen.value = it } }
-        // Which service the match card reads: sofa | sofa-only | livescore.
-        intent.getStringExtra("live")?.let { app.prefs.liveMode = it }
         val debug = applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
-        // Debug builds can point the SofaScore client at a local mock, to test the live path end to end.
-        if (debug) intent.getStringExtra("sofa")?.let { app.prefs.sofaBase = it }
         if (debug && intent.hasExtra("shift")) {
             debugShiftSeconds = intent.getLongExtra("shift", 0L)
             model.now = Instant.now().plusSeconds(debugShiftSeconds)

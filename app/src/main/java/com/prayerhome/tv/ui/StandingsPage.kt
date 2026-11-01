@@ -65,7 +65,6 @@ import com.prayerhome.tv.football.Competition
 import com.prayerhome.tv.football.Goal
 import com.prayerhome.tv.football.LiveNow
 import com.prayerhome.tv.football.Match
-import com.prayerhome.tv.football.MatchLive
 import com.prayerhome.tv.football.MatchState
 import com.prayerhome.tv.football.Side
 import com.prayerhome.tv.football.Tie
@@ -103,7 +102,7 @@ private fun backTo(onBack: () -> Unit) = Nav(apps = {}, matches = {}, settings =
 fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val repo = App.of(ctx).standings
-    val source = App.of(ctx).live
+    val goalsRepo = App.of(ctx).goals
     val compId = match.comp
     // The Matches page keeps polling this match while it is live; follow that fresh copy so the
     // side card's score and final whistle don't stick at the values from the moment it was opened.
@@ -120,26 +119,26 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
     var chosen by remember(compId) { mutableStateOf<StandingsMode?>(null) }
     var stageIdx by remember(compId) { mutableIntStateOf(-1) }
     var drawIdx by remember(compId) { mutableIntStateOf(0) }
-    // The opened match: result, minute and goals, all from the one source picked in Settings. The
-    // copy on disk opens the card instantly; the loop then follows that source's own status — every
-    // 30 seconds while it says the match is in play (or kick-off is within five minutes), every five
-    // minutes otherwise — so the checks come from the same place as the numbers.
-    var live by remember(match.id) { mutableStateOf(source.cached(shown)) }
-    var liveMissing by remember(match.id) { mutableStateOf(false) }
+    // Who scored. The result, the minute and the state are not read here: they are the fresh Match
+    // from the list below, the same values as the matches list, the home screen and the banners. The
+    // score is part of the key, so a goal restarts this loop and its scorer is read right away; the
+    // stored copy opens the card with the goals already on screen.
+    var goals by remember(match.id) { mutableStateOf(goalsRepo.cached(shown)) }
+    var goalsMissing by remember(match.id) { mutableStateOf(false) }
 
-    LaunchedEffect(match.id) {
+    LaunchedEffect(match.id, shown.state, shown.homeScore, shown.awayScore) {
         while (true) {
             val current = m.allMatches.firstOrNull { it.id == match.id } ?: shown
             if (App.homeVisible) {
-                val fresh = runCatching { source.load(current) }.getOrNull()
+                val fresh = runCatching { goalsRepo.load(current) }.getOrNull()
                 if (fresh != null) {
-                    live = fresh
-                    liveMissing = false
-                } else if (live == null) {
-                    liveMissing = true
+                    goals = fresh
+                    goalsMissing = false
+                } else if (goals == null) {
+                    goalsMissing = true
                 }
             }
-            delay(source.interval(current, live))
+            delay(goalsRepo.interval(current))
         }
     }
 
@@ -170,7 +169,7 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
             }
             // 3. Is anything around kick-off? Only then is the table downloaded again.
             val fixtures = fixturesOf(compId, shown, m.allMatches, data)
-            val onPitch = live?.live == true || liveNow?.teams?.isNotEmpty() == true || fixtures.any { it.state == MatchState.LIVE }
+            val onPitch = liveNow?.teams?.isNotEmpty() == true || fixtures.any { it.state == MatchState.LIVE }
             val nearKickoff = fixtures.any { kotlin.math.abs(Duration.between(now, it.kickoff).seconds) <= NEAR_KICKOFF.seconds }
             val justFinished = first && fixtures.any { it.state == MatchState.FINISHED && it.kickoff.isAfter(now.minus(RECENT_RESULT)) }
             val mustLoad = data == null
@@ -280,8 +279,8 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
                     s, m, d,
                     stageIdx.takeIf { it in d.tables.indices } ?: stageFor(d.tables, match.league, match.stage),
                     shown,
-                    live,
-                    liveMissing,
+                    goals,
+                    goalsMissing,
                     onBack,
                     Modifier.weight(1f),
                 )
@@ -387,8 +386,8 @@ private fun TableView(
     c: Competition,
     stageIndex: Int,
     focusMatch: Match,
-    live: MatchLive?,
-    liveMissing: Boolean,
+    goals: List<Goal>?,
+    goalsMissing: Boolean,
     onBack: () -> Unit,
     modifier: Modifier,
 ) {
@@ -483,7 +482,7 @@ private fun TableView(
             }
         }
         Spacer(Modifier.width(40.dp))
-        MatchSideCard(s, m, focusMatch, live, liveMissing, stage, focusReq, Modifier.width(500.dp).fillMaxHeight())
+        MatchSideCard(s, m, focusMatch, goals, goalsMissing, stage, focusReq, Modifier.width(500.dp).fillMaxHeight())
     }
 }
 
@@ -516,27 +515,17 @@ private fun MatchSideCard(
     s: PageStyle,
     m: HomeModel,
     match: Match,
-    data: MatchLive?,
-    missing: Boolean,
+    goals: List<Goal>?,
+    goalsMissing: Boolean,
     stage: com.prayerhome.tv.football.TableStage,
     tableFocus: FocusRequester,
     modifier: Modifier,
 ) {
-    // The source's own result wins; the row's copy is only a stand-in when nothing could be read.
-    val state = data?.state ?: match.state
-    val live = state == MatchState.LIVE
-    val homeScore = when {
-        data?.hasScore == true -> data.homeScore
-        match.hasScore -> match.homeScore
-        else -> ""
-    }
-    val awayScore = when {
-        data?.hasScore == true -> data.awayScore
-        match.hasScore -> match.awayScore
-        else -> ""
-    }
-    val label = data?.label?.ifEmpty { null } ?: match.statusLabel
-    val goals = data?.goals
+    // Straight from the live feed: the same score, minute and state the matches list shows.
+    val live = match.isLive
+    val homeScore = if (match.hasScore) match.homeScore else ""
+    val awayScore = if (match.hasScore) match.awayScore else ""
+    val label = match.statusLabel
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val focusReq = remember { FocusRequester() }
@@ -570,12 +559,7 @@ private fun MatchSideCard(
                 .padding(horizontal = 22.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                T("YOUR MATCH", s.body, 17, s.muted, spacing = s.labelSpacing)
-                Spacer(Modifier.weight(1f))
-                // Which service answered: the two are one setting apart, so say which one it is.
-                data?.let { T(it.src.label.uppercase(), s.body, 14, s.muted.copy(alpha = 0.55f), spacing = 0.1f) }
-            }
+            T("YOUR MATCH", s.body, 17, s.muted, spacing = s.labelSpacing)
             T(match.league, s.body, 20, s.muted)
             MatchTeamLine(s, match.home, homeScore, live)
             MatchTeamLine(s, match.away, awayScore, live)
@@ -587,18 +571,17 @@ private fun MatchSideCard(
                 }
             } else {
                 T(
-                    if (state == MatchState.FINISHED) label else m.matchTime(match),
+                    if (match.state == MatchState.FINISHED) label else m.matchTime(match),
                     s.body, 18, s.muted,
                 )
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(s.border))
             when {
-                data == null -> T(
-                    if (missing) "Live data unavailable" else "Looking for the goals…",
+                goals == null -> T(
+                    if (goalsMissing) "Goals unavailable" else "Looking for the goals…",
                     s.body, 17, s.muted,
                 )
-                goals == null -> T("Goals unavailable", s.body, 17, s.muted)
-                goals.isEmpty() && state == MatchState.UPCOMING -> T("Kick-off ${m.matchTimeOnly(match)}", s.body, 17, s.muted)
+                goals.isEmpty() && match.state == MatchState.UPCOMING -> T("Kick-off ${m.matchTimeOnly(match)}", s.body, 17, s.muted)
                 goals.isEmpty() -> T("No goals", s.body, 17, s.muted)
                 else -> {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -711,7 +694,8 @@ private fun TeamLine(s: PageStyle, row: com.prayerhome.tv.football.TableRow, liv
         NumCell(s, "${row.lost}", COL_STAT, s.text, 27)
         NumCell(s, signed(row.goalDiff), COL_GD, s.muted, 27)
         Box(Modifier.width(COL_PTS.dp), contentAlignment = Alignment.CenterEnd) {
-            T("${row.points}", s.numbers, 32, s.accent, weight = 600)
+            // A team that is playing right now keeps its points red, beside the red LIVE tag.
+            T("${row.points}", s.numbers, 32, if (live != null) s.red else s.accent, weight = 600)
         }
         Spacer(Modifier.weight(1f))
     }

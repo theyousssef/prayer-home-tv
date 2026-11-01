@@ -22,6 +22,16 @@ data class Location(
 class Prefs(context: Context) {
     private val sp: SharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
+    init {
+        // v1.9 dropped the old live-data switcher (it stored a source name and a host). Anything this
+        // build no longer knows is swept out once, so an upgraded TV keeps no leftovers.
+        if (sp.getInt("settingsVersion", 1) < SETTINGS_VERSION) {
+            val unknown = sp.all.keys.filter { it !in KEYS }
+            if (unknown.isNotEmpty()) sp.edit().apply { unknown.forEach { remove(it) } }.apply()
+            sp.edit().putInt("settingsVersion", SETTINGS_VERSION).apply()
+        }
+    }
+
     var themeIndex: Int
         get() = sp.getInt("theme", 0)
         set(v) = edit { putInt("theme", v) }
@@ -76,19 +86,6 @@ class Prefs(context: Context) {
     var screensaverOff: Boolean
         get() = sp.getBoolean("screensaverOff", true)
         set(v) = edit { putBoolean("screensaverOff", v) }
-
-    /**
-     * Where the opened match's score, minute and goals come from: "sofa" (SofaScore, LiveScore only
-     * when SofaScore can't be reached), "sofa-only", or "livescore". See `football/LiveMode`.
-     */
-    var liveMode: String
-        get() = sp.getString("liveMode", "sofa")!!
-        set(v) = edit { putString("liveMode", v) }
-
-    /** Debug builds only: points the SofaScore client at another base (a local mock), to test the path. */
-    var sofaBase: String
-        get() = sp.getString("sofaBase", "")!!
-        set(v) = edit { putString("sofaBase", v) }
 
     /** Kick-off and goal banners for your teams' matches. */
     var matchAlerts: Boolean
@@ -146,6 +143,16 @@ class Prefs(context: Context) {
 
     companion object {
         val CHIME_CHOICES = listOf(5, 10, 15, 20, 30)
+
+        /** Bumped when a build stops using a setting, so the sweep above can drop it. */
+        private const val SETTINGS_VERSION = 2
+
+        /** Every key this class writes. A key that isn't here is a leftover from an older build. */
+        private val KEYS: Set<String> = setOf(
+            "theme", "location", "method", "hanafi", "hijriOffset", "chime", "chimeMinutes",
+            "chimeVolume", "chimeOverApps", "english", "screensaverOff", "matchAlerts",
+            "matchOverrides", "pinned", "teams", "settingsVersion",
+        ) + (0..5).map { "off$it" }
 
         // LiveScore team ids
         val DEFAULT_TEAMS = listOf(

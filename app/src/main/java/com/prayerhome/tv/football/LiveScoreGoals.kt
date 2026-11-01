@@ -6,11 +6,12 @@ import org.json.JSONObject
 private const val TAG = "LiveScore"
 
 /**
- * Goal scorers from LiveScore's own match page (the server-rendered `__NEXT_DATA__` block).
+ * Goal scorers from LiveScore's own match page (the server-rendered `__NEXT_DATA__` block): every
+ * goal of the match with its minute, scorer and side.
  *
- * This is the source the app used before SofaScore, kept whole: Settings can switch the match card
- * back to it at any time, and it is still the fallback when SofaScore refuses a request. Returns
- * null when the page can't be read, so the card says so instead of showing "no goals".
+ * Only the goals come from here — the score, the minute of play and the state are the live feed's
+ * ([MatchRepo]), the same values the rest of the app shows. Returns null when the page can't be
+ * read, so the card says so instead of showing "no goals".
  */
 internal object LiveScoreGoals {
 

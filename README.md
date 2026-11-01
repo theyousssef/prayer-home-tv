@@ -126,7 +126,7 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   content. The table is compact and dense (large names and numbers) and puts the match you opened
   from beside it; its two teams stay highlighted in the accent colour even when they are not playing,
   as a darker shade of the page (no accent outline), and a live team keeps its normal row with only a
-  red `LIVE 67'` tag. The table always opens at #1 and only scrolls when the higher of your two teams
+  red `LIVE 67'` tag and its points in the same red. The table always opens at #1 and only scrolls when the higher of your two teams
   is below the first screenful — two teams in the same match (say 4th and 17th) leave it at the top. The UCL league phase is split after 8th and 24th, and a group phase published as
   one stage per group (a World Cup's twelve groups, the CAF Champions League's four) is merged into a
   single table. The bracket is a real
@@ -144,17 +144,15 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   open shows its final whistle with the last score. 36-team league phases get the Top 8 / 24 cut
   lines.
 
-  The card beside the table shows the match's **current result, minute and goals** — all three from
-  one source, SofaScore (its event for the score and the clock, its incidents for the goals, oldest
-  first with minute, scorer and badge), and names the source in its top corner. LiveScore is kept
-  whole and switchable: Settings → Football → *Scores, minutes & goals* offers **SofaScore**
-  (default; LiveScore answers only when SofaScore can't be reached), **SofaScore only** and
-  **LiveScore**. SofaScore's Cloudflare refusal (403) is remembered for six hours, so a network that
-  blocks it costs one request, not one per open. The copy on disk opens the card instantly and
-  drives the checks: it is re-read every **30 seconds while the match is in play** (or within five
-  minutes of kick-off) and every **five minutes otherwise**, and a finished match keeps its final
-  score for a week. The card scrolls on its own (Right from the table, Left to come back), so a
-  seven-goal game or more needs no squeezing.
+  The card beside the table shows the match's **score, minute and goals**. The first two are the
+  live feed's own numbers — the very Match the matches list, the home screen and the banners use —
+  so the card always agrees with them, to the second. The goals come from LiveScore's own match page
+  (minute, scorer and badge, oldest first) and are read **the moment the score changes**, so a new
+  goal shows its scorer within one 15-second poll, then at most every 30 seconds; a finished match
+  is read once, again a couple of minutes later for late corrections and own-goal reassignments, and
+  its copy is then kept for a week. Nothing is read before kick-off or for a postponed tie. The copy
+  on disk opens the card with its goals already on screen. The card scrolls on its own (Right from
+  the table, Left to come back), so a seven-goal game or more needs no squeezing.
 - **Highlights.** For a finished match the Matches page searches YouTube for its highlights, with
   no API key: a normal results page in English and in Arabic (club names are translated, with a
   built-in list for the common clubs, and cached). A video is kept only when it comes from an
@@ -213,10 +211,6 @@ adb shell am start -n com.prayerhome.tv/.MainActivity --ei theme 3 --es screen a
 language. Debug builds also accept `--el shift <seconds>` to preview another time of day, for
 example the red phase before a prayer, `--es simulate kickoff` (or `goal`) with an optional
 `--ei delay <seconds>` to fire a match banner after you've opened another app, and `--es toast <text>`.
-
-Two extras pin the live source without going to Settings: `--es live sofa` (or `sofa-only`,
-`livescore`), and in debug builds `--es sofa <base-url>` to point the SofaScore client at a local
-mock — the debug manifest allows plain HTTP for it. A release build drops that address on start.
 
 To try the chime and its banner without waiting for a prayer:
 
