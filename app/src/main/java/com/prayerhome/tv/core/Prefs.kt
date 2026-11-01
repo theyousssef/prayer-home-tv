@@ -77,6 +77,19 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("screensaverOff", true)
         set(v) = edit { putBoolean("screensaverOff", v) }
 
+    /**
+     * Where the opened match's score, minute and goals come from: "sofa" (SofaScore, LiveScore only
+     * when SofaScore can't be reached), "sofa-only", or "livescore". See `football/LiveMode`.
+     */
+    var liveMode: String
+        get() = sp.getString("liveMode", "sofa")!!
+        set(v) = edit { putString("liveMode", v) }
+
+    /** Debug builds only: points the SofaScore client at another base (a local mock), to test the path. */
+    var sofaBase: String
+        get() = sp.getString("sofaBase", "")!!
+        set(v) = edit { putString("sofaBase", v) }
+
     /** Kick-off and goal banners for your teams' matches. */
     var matchAlerts: Boolean
         get() = sp.getBoolean("matchAlerts", true)

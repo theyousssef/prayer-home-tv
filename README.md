@@ -10,8 +10,9 @@ A lightweight home screen (launcher) for Google TV / Android TV, built around th
 - highlights for a finished match: its mute button turns into a video button, and the longest
   YouTube highlights from the competitions', clubs' and broadcasters' channels play in the YouTube app
 - the standings of any match's competition: the league table, the cup's knockout tree, or both, with
-  the teams currently on the pitch in red and the panel refreshing itself every 30 seconds while a
-  match is on or about to start
+  the teams currently on the pitch marked by a red LIVE tag and the panel refreshing itself every 30
+  seconds while a match is on or about to start
+- who scored, and when, in the match you opened: the scorer's minute, name and badge beside the table
 - a Quran button that opens the companion **[Quran Reader](https://github.com/theyousssef/quran-reader-tv)** app (a separate app; Prayer Home only opens it)
 - three pinned apps on Home, everything else on an Apps page
 - keeps the TV's screensaver from covering the prayer screen
@@ -123,7 +124,11 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   a knockout bracket with connecting lines, or both, switched with Table / Bracket above the
   content. The table is compact and dense (large names and numbers) and puts the match you opened
   from beside it; its two teams stay highlighted in the accent colour even when they are not playing,
-  and red when they are. The UCL league phase is split after 8th and 24th. The bracket is a real
+  as a darker shade of the page (no accent outline), and a live team keeps its normal row with only a
+  red `LIVE 67'` tag. The table always opens at #1 and only scrolls when the higher of your two teams
+  is below the first screenful — two teams in the same match (say 4th and 17th) leave it at the top. The UCL league phase is split after 8th and 24th, and a group phase published as
+  one stage per group (a World Cup's twelve groups, the CAF Champions League's four) is merged into a
+  single table. The bracket is a real
   tree with connecting lines, and it scrolls in both directions: every round and every tie of the
   draw is reachable with the D-pad, your tie's path to the final is lit in the accent colour, and
   only the ties in view are composed, so a 176-tie round stays cheap. The table and the tree are
@@ -134,9 +139,21 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   competition is opened). The table is downloaded again only while a match of this competition is
   live, around its kick-off (±5 minutes), or right after a recent result, and then every 30 seconds;
   otherwise nothing is fetched and the saved numbers stand until the next kick-off. The small live
-  feed still ticks the minutes and keeps teams on the pitch red, and a tie that finishes while the
-  panel is open shows its final whistle with the last score. 36-team league phases get the Top 8 /
-  24 cut lines.
+  feed still ticks the minutes and keeps the live tag red, and a tie that finishes while the panel is
+  open shows its final whistle with the last score. 36-team league phases get the Top 8 / 24 cut
+  lines.
+
+  The card beside the table shows the match's **current result, minute and goals** — all three from
+  one source, SofaScore (its event for the score and the clock, its incidents for the goals, oldest
+  first with minute, scorer and badge), and names the source in its top corner. LiveScore is kept
+  whole and switchable: Settings → Football → *Scores, minutes & goals* offers **SofaScore**
+  (default; LiveScore answers only when SofaScore can't be reached), **SofaScore only** and
+  **LiveScore**. SofaScore's Cloudflare refusal (403) is remembered for six hours, so a network that
+  blocks it costs one request, not one per open. The copy on disk opens the card instantly and
+  drives the checks: it is re-read every **30 seconds while the match is in play** (or within five
+  minutes of kick-off) and every **five minutes otherwise**, and a finished match keeps its final
+  score for a week. The card scrolls on its own (Right from the table, Left to come back), so a
+  seven-goal game or more needs no squeezing.
 - **Highlights.** For a finished match the Matches page searches YouTube for its highlights, with
   no API key: a normal results page in English and in Arabic (club names are translated, with a
   built-in list for the common clubs, and cached). A video is kept only when it comes from an
@@ -194,6 +211,10 @@ adb shell am start -n com.prayerhome.tv/.MainActivity --ei theme 3 --es screen a
 language. Debug builds also accept `--el shift <seconds>` to preview another time of day, for
 example the red phase before a prayer, `--es simulate kickoff` (or `goal`) with an optional
 `--ei delay <seconds>` to fire a match banner after you've opened another app, and `--es toast <text>`.
+
+Two extras pin the live source without going to Settings: `--es live sofa` (or `sofa-only`,
+`livescore`), and in debug builds `--es sofa <base-url>` to point the SofaScore client at a local
+mock — the debug manifest allows plain HTTP for it. A release build drops that address on start.
 
 To try the chime and its banner without waiting for a prayer:
 

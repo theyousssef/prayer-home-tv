@@ -301,7 +301,21 @@ class StandingsRepo(private val context: Context) {
                 out += TableStage(s.optString("Sid"), s.optString("Snm").ifEmpty { s.optString("CompN") }, groups)
             }
         }
-        return out
+        return mergeGroups(out)
+    }
+
+    /**
+     * LiveScore gives some group phases one stage per group ("Group A", "Group B"...). Merge those into
+     * one table so a World Cup's twelve groups are one scroll instead of twelve tabs. Split seasons
+     * (a championship round and a relegation round) keep their stage picker.
+     */
+    private fun mergeGroups(stages: List<TableStage>): List<TableStage> {
+        if (stages.size < 2) return stages
+        if (stages.any { it.groups.size != 1 }) return stages
+        if (stages.any { !it.shortName.startsWith("Group ", ignoreCase = true) }) return stages
+        val groups = stages.mapIndexed { i, st -> st.groups[0].copy(name = stages[i].shortName) }
+        val title = stages.first().name.substringBefore(':').trim().ifEmpty { "Groups" }
+        return listOf(TableStage(stages.first().id, title, groups))
     }
 
     private fun teamRows(a: JSONArray): List<TableRow> {

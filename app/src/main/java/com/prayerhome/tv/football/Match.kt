@@ -51,6 +51,8 @@ data class Match(
     val comp: String = "",
     /** The stage's LiveScore id (a league's group or a cup's round), so the panel opens on the right one. */
     val stage: String = "",
+    /** LiveScore's category slug ("spain", "england", "africa"...), used to find the match's own page. */
+    val cat: String = "",
 ) {
     val state: MatchState get() = stateOf(status, statusCode)
 

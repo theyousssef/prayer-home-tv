@@ -10,6 +10,7 @@ import com.prayerhome.tv.football.Highlights
 import com.prayerhome.tv.football.Logos
 import com.prayerhome.tv.football.MatchRepo
 import com.prayerhome.tv.football.MatchWatch
+import com.prayerhome.tv.football.LiveRepo
 import com.prayerhome.tv.football.StandingsRepo
 import com.prayerhome.tv.update.SelfUpdater
 import kotlinx.coroutines.CoroutineScope
@@ -23,11 +24,14 @@ class App : Application() {
     val logos by lazy { Logos(this) }
     val highlights by lazy { Highlights(this) }
     val standings by lazy { StandingsRepo(this) }
+    val live by lazy { LiveRepo(this, prefs) }
     /** For short background work started by receivers. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
+        // A debug build can point SofaScore at a local mock; a release never keeps that address.
+        if (!BuildConfig.DEBUG && prefs.sofaBase.isNotEmpty()) prefs.sofaBase = ""
         ChimeScheduler.schedule(this)
         MatchWatch.schedule(this)
         Screensaver.apply(this, prefs.screensaverOff)

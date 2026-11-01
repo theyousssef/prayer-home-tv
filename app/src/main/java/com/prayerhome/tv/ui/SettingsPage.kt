@@ -45,6 +45,7 @@ import com.prayerhome.tv.core.Cities
 import com.prayerhome.tv.core.Prayer
 import com.prayerhome.tv.core.Prefs
 import com.prayerhome.tv.core.Screensaver
+import com.prayerhome.tv.football.LiveMode
 
 private sealed interface Row_ {
     val key: String
@@ -131,6 +132,10 @@ fun SettingsPage(s: PageStyle, m: HomeModel, nav: Nav) {
             p.screensaverOff = !p.screensaverOff; Screensaver.apply(ctx, p.screensaverOff); changed()
         })
         add(Header("FOOTBALL"))
+        // SofaScore is the one relied on; LiveScore is kept whole and a ◀ ▶ away for the day it's needed.
+        add(Choice("live", "Scores, minutes & goals", LiveMode.of(p.liveMode).label) { d ->
+            p.liveMode = cycle(LiveMode.entries, LiveMode.of(p.liveMode), d).id; changed()
+        })
         // Teams, match notifications and match refresh live on the Matches page now; this row just points there.
         add(Action("football", "Football teams & match notifications", "Open the Matches page") { nav.matches() })
     }

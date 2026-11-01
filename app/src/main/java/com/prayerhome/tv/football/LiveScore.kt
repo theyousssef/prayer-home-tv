@@ -52,6 +52,8 @@ object LiveScore {
             val events = s.optJSONArray("Events") ?: continue
             val comp = s.optString("CompId")
             val stage = s.optString("Sid")
+            // The site uses the transliterated category ("turkiye"), which Ccd can spell differently ("turkey").
+            val cat = s.optString("CnmT").ifEmpty { s.optString("Ccd") }
             var league: String? = null
             for (j in 0 until events.length()) {
                 val e = events.getJSONObject(j)
@@ -78,6 +80,7 @@ object LiveScore {
                     league = league,
                     comp = comp,
                     stage = stage,
+                    cat = cat,
                 )
             }
         }
@@ -124,13 +127,13 @@ object LiveScore {
         .put("id", m.id).put("k", m.kickoff.epochSecond)
         .put("h", sideJson(m.home)).put("a", sideJson(m.away))
         .put("hs", m.homeScore).put("as", m.awayScore)
-        .put("st", m.status).put("sc", m.statusCode).put("lg", m.league).put("cp", m.comp).put("sg", m.stage)
+        .put("st", m.status).put("sc", m.statusCode).put("lg", m.league).put("cp", m.comp).put("sg", m.stage).put("ct", m.cat)
 
     fun fromJson(o: JSONObject) = Match(
         o.getString("id"), Instant.ofEpochSecond(o.getLong("k")),
         sideFrom(o.getJSONObject("h")), sideFrom(o.getJSONObject("a")),
         o.optString("hs"), o.optString("as"), o.optString("st"), o.optInt("sc"), o.optString("lg"),
-        o.optString("cp"), o.optString("sg"),
+        o.optString("cp"), o.optString("sg"), o.optString("ct"),
     )
 
     private fun sideJson(s: Side) = JSONObject().put("i", s.id).put("n", s.name).put("s", s.short).put("m", s.img)

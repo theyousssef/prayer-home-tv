@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -44,6 +46,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -59,8 +62,10 @@ import com.prayerhome.tv.App
 import com.prayerhome.tv.core.DateText
 import com.prayerhome.tv.football.BracketRound
 import com.prayerhome.tv.football.Competition
+import com.prayerhome.tv.football.Goal
 import com.prayerhome.tv.football.LiveNow
 import com.prayerhome.tv.football.Match
+import com.prayerhome.tv.football.MatchLive
 import com.prayerhome.tv.football.MatchState
 import com.prayerhome.tv.football.Side
 import com.prayerhome.tv.football.Tie
@@ -96,7 +101,9 @@ private fun backTo(onBack: () -> Unit) = Nav(apps = {}, matches = {}, settings =
  */
 @Composable
 fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit) {
-    val repo = App.of(LocalContext.current).standings
+    val ctx = LocalContext.current
+    val repo = App.of(ctx).standings
+    val source = App.of(ctx).live
     val compId = match.comp
     // The Matches page keeps polling this match while it is live; follow that fresh copy so the
     // side card's score and final whistle don't stick at the values from the moment it was opened.
@@ -113,6 +120,28 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
     var chosen by remember(compId) { mutableStateOf<StandingsMode?>(null) }
     var stageIdx by remember(compId) { mutableIntStateOf(-1) }
     var drawIdx by remember(compId) { mutableIntStateOf(0) }
+    // The opened match: result, minute and goals, all from the one source picked in Settings. The
+    // copy on disk opens the card instantly; the loop then follows that source's own status — every
+    // 30 seconds while it says the match is in play (or kick-off is within five minutes), every five
+    // minutes otherwise — so the checks come from the same place as the numbers.
+    var live by remember(match.id) { mutableStateOf(source.cached(shown)) }
+    var liveMissing by remember(match.id) { mutableStateOf(false) }
+
+    LaunchedEffect(match.id) {
+        while (true) {
+            val current = m.allMatches.firstOrNull { it.id == match.id } ?: shown
+            if (App.homeVisible) {
+                val fresh = runCatching { source.load(current) }.getOrNull()
+                if (fresh != null) {
+                    live = fresh
+                    liveMissing = false
+                } else if (live == null) {
+                    liveMissing = true
+                }
+            }
+            delay(source.interval(current, live))
+        }
+    }
 
     LaunchedEffect(compId, retry) {
         if (compId.isEmpty()) return@LaunchedEffect
@@ -141,7 +170,7 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
             }
             // 3. Is anything around kick-off? Only then is the table downloaded again.
             val fixtures = fixturesOf(compId, shown, m.allMatches, data)
-            val onPitch = liveNow?.teams?.isNotEmpty() == true || fixtures.any { it.state == MatchState.LIVE }
+            val onPitch = live?.live == true || liveNow?.teams?.isNotEmpty() == true || fixtures.any { it.state == MatchState.LIVE }
             val nearKickoff = fixtures.any { kotlin.math.abs(Duration.between(now, it.kickoff).seconds) <= NEAR_KICKOFF.seconds }
             val justFinished = first && fixtures.any { it.state == MatchState.FINISHED && it.kickoff.isAfter(now.minus(RECENT_RESULT)) }
             val mustLoad = data == null
@@ -251,6 +280,8 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
                     s, m, d,
                     stageIdx.takeIf { it in d.tables.indices } ?: stageFor(d.tables, match.league, match.stage),
                     shown,
+                    live,
+                    liveMissing,
                     onBack,
                     Modifier.weight(1f),
                 )
@@ -350,7 +381,17 @@ private val LEAGUE_PHASE_CUTS = setOf(8, 24)
  * teams of the match the panel was opened from are already marked, so there is nothing to focus.
  */
 @Composable
-private fun TableView(s: PageStyle, m: HomeModel, c: Competition, stageIndex: Int, focusMatch: Match, onBack: () -> Unit, modifier: Modifier) {
+private fun TableView(
+    s: PageStyle,
+    m: HomeModel,
+    c: Competition,
+    stageIndex: Int,
+    focusMatch: Match,
+    live: MatchLive?,
+    liveMissing: Boolean,
+    onBack: () -> Unit,
+    modifier: Modifier,
+) {
     if (c.tables.isEmpty()) {
         EmptyState(s, "No table for this competition yet", modifier)
         return
@@ -385,7 +426,14 @@ private fun TableView(s: PageStyle, m: HomeModel, c: Competition, stageIndex: In
 
     LaunchedEffect(stage.id) {
         delay(120)
-        if (openedIndex > 0) runCatching { list.scrollToItem(openedIndex - 1) }
+        // The table opens at #1. It only scrolls when the higher of your two teams is below the
+        // first screenful, and then just enough to bring it into view.
+        if (openedIndex > 0) {
+            val visible = list.layoutInfo.visibleItemsInfo
+            val onScreen = visible.isNotEmpty() && openedIndex in visible.first().index..visible.last().index
+            // If the list hasn't been laid out yet, leave it at the top: never jump needlessly.
+            if (visible.isNotEmpty() && !onScreen) runCatching { list.scrollToItem((openedIndex - 2).coerceAtLeast(0)) }
+        }
         if (!tookFocus) {
             tookFocus = true
             runCatching { focusReq.requestFocus() }
@@ -435,7 +483,7 @@ private fun TableView(s: PageStyle, m: HomeModel, c: Competition, stageIndex: In
             }
         }
         Spacer(Modifier.width(40.dp))
-        MatchSideCard(s, m, focusMatch, stage, Modifier.width(500.dp).fillMaxHeight())
+        MatchSideCard(s, m, focusMatch, live, liveMissing, stage, focusReq, Modifier.width(500.dp).fillMaxHeight())
     }
 }
 
@@ -459,65 +507,146 @@ private fun tableKeys(e: KeyEvent, list: LazyListState, scope: CoroutineScope, r
 }
 
 /**
- * The match the panel was opened from, beside the table: it explains the accent highlight and holds
- * the legend, so the eye lands on the two rows that matter.
+ * The match the panel was opened from, beside the table: the teams and the score at the top, then
+ * every goal with its minute and scorer. The card scrolls on its own (Right from the table) so a
+ * seven-goal game fits without squeezing anything.
  */
 @Composable
-private fun MatchSideCard(s: PageStyle, m: HomeModel, match: Match, stage: com.prayerhome.tv.football.TableStage, modifier: Modifier) {
-    val live = match.isLive
-    Column(
-        modifier.box(s.surface, s.border, 1.dp, RoundedCornerShape(s.radius.dp)).padding(horizontal = 22.dp, vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        T("YOUR MATCH", s.body, 17, s.muted, spacing = s.labelSpacing)
-        T(match.league, s.body, 20, s.muted)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TeamLogoSafe(match.home, 44)
-            Spacer(Modifier.width(14.dp))
-            T(match.home.name, s.body, 26, s.text, modifier = Modifier.weight(1f))
-            if (match.hasScore) T("${match.homeScore}", s.numbers, 34, if (live) s.red else s.accent, weight = s.numbersWeight)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TeamLogoSafe(match.away, 44)
-            Spacer(Modifier.width(14.dp))
-            T(match.away.name, s.body, 26, s.text, modifier = Modifier.weight(1f))
-            if (match.hasScore) T("${match.awayScore}", s.numbers, 34, if (live) s.red else s.accent, weight = s.numbersWeight)
-        }
-        if (live) {
-            Row(
-                Modifier.background(s.redBg, RoundedCornerShape(999.dp)).padding(horizontal = 14.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Dot(s.red, 8)
-                Spacer(Modifier.width(7.dp))
-                T("LIVE ${match.statusLabel}", s.body, 18, s.red, weight = 600, spacing = 0.05f)
+private fun MatchSideCard(
+    s: PageStyle,
+    m: HomeModel,
+    match: Match,
+    data: MatchLive?,
+    missing: Boolean,
+    stage: com.prayerhome.tv.football.TableStage,
+    tableFocus: FocusRequester,
+    modifier: Modifier,
+) {
+    // The source's own result wins; the row's copy is only a stand-in when nothing could be read.
+    val state = data?.state ?: match.state
+    val live = state == MatchState.LIVE
+    val homeScore = when {
+        data?.hasScore == true -> data.homeScore
+        match.hasScore -> match.homeScore
+        else -> ""
+    }
+    val awayScore = when {
+        data?.hasScore == true -> data.awayScore
+        match.hasScore -> match.awayScore
+        else -> ""
+    }
+    val label = data?.label?.ifEmpty { null } ?: match.statusLabel
+    val goals = data?.goals
+    val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val focusReq = remember { FocusRequester() }
+    var focused by remember { mutableStateOf(false) }
+    val step = with(LocalDensity.current) { 96.dp.toPx() }
+    Box(
+        modifier.clipToBounds()
+            .focusRequester(focusReq)
+            .onFocusChanged { focused = it.isFocused }
+            .onKeyEvent { e ->
+                if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
+                when (e.key) {
+                    Key.DirectionUp -> if (!scroll.canScrollBackward) false else {
+                        scope.launch { scroll.scrollBy(-step) }
+                        true
+                    }
+                    Key.DirectionDown -> if (!scroll.canScrollForward) false else {
+                        scope.launch { scroll.scrollBy(step) }
+                        true
+                    }
+                    Key.DirectionLeft -> { runCatching { tableFocus.requestFocus() }; true }
+                    else -> false
+                }
             }
-        } else {
-            T(
-                if (match.state == MatchState.FINISHED) match.statusLabel else m.matchTime(match),
-                s.body, 18, s.muted,
-            )
-        }
-        Spacer(Modifier.height(2.dp))
-        Box(Modifier.fillMaxWidth().height(1.dp).background(s.border))
-        Spacer(Modifier.height(2.dp))
-        T("LEGEND", s.body, 17, s.muted, spacing = s.labelSpacing)
-        LegendLine(s, s.accent, "Your two teams")
-        LegendLine(s, s.red, "Playing right now")
-        if (stage.groups.any { it.rows.size == 36 }) {
-            Spacer(Modifier.height(2.dp))
-            Box(Modifier.fillMaxWidth().height(1.dp).background(s.accent.copy(alpha = 0.5f)))
-            T("Top 8 go to the Round of 16 · 25–36 are out", s.body, 16, s.muted)
+            .focusable(),
+    ) {
+        Column(
+            Modifier.fillMaxSize()
+                .box(s.surface, if (focused) s.accent else s.border, if (focused) 2.dp else 1.dp, RoundedCornerShape(s.radius.dp))
+                .verticalScroll(scroll)
+                .padding(horizontal = 22.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                T("YOUR MATCH", s.body, 17, s.muted, spacing = s.labelSpacing)
+                Spacer(Modifier.weight(1f))
+                // Which service answered: the two are one setting apart, so say which one it is.
+                data?.let { T(it.src.label.uppercase(), s.body, 14, s.muted.copy(alpha = 0.55f), spacing = 0.1f) }
+            }
+            T(match.league, s.body, 20, s.muted)
+            MatchTeamLine(s, match.home, homeScore, live)
+            MatchTeamLine(s, match.away, awayScore, live)
+            if (live) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Dot(s.red, 8)
+                    Spacer(Modifier.width(7.dp))
+                    T("LIVE $label", s.body, 18, s.red, weight = 600, spacing = 0.05f)
+                }
+            } else {
+                T(
+                    if (state == MatchState.FINISHED) label else m.matchTime(match),
+                    s.body, 18, s.muted,
+                )
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(s.border))
+            when {
+                data == null -> T(
+                    if (missing) "Live data unavailable" else "Looking for the goals…",
+                    s.body, 17, s.muted,
+                )
+                goals == null -> T("Goals unavailable", s.body, 17, s.muted)
+                goals.isEmpty() && state == MatchState.UPCOMING -> T("Kick-off ${m.matchTimeOnly(match)}", s.body, 17, s.muted)
+                goals.isEmpty() -> T("No goals", s.body, 17, s.muted)
+                else -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        T("GOALS", s.body, 20, s.muted, spacing = s.labelSpacing)
+                        Spacer(Modifier.weight(1f))
+                        T("${goals.size}", s.numbers, 22, s.accent, weight = 600)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        goals.forEach { g -> GoalLine(s, g, if (g.home) match.home else match.away) }
+                    }
+                }
+            }
+            if (stage.groups.any { it.rows.size == 36 }) {
+                Spacer(Modifier.height(2.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(s.accent.copy(alpha = 0.5f)))
+                T("Top 8 go to the Round of 16 · 25–36 are out", s.body, 16, s.muted)
+            }
         }
     }
 }
 
 @Composable
-private fun LegendLine(s: PageStyle, color: Color, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Dot(color, 10)
+private fun MatchTeamLine(s: PageStyle, team: Side, score: String, live: Boolean) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        TeamLogoSafe(team, 44)
+        Spacer(Modifier.width(14.dp))
+        T(team.name, s.body, 26, s.text, modifier = Modifier.weight(1f))
+        if (score.isNotEmpty()) T(score, s.numbers, 34, s.text, weight = s.numbersWeight)
+    }
+}
+
+/** One goal: the minute, a side colour, the scorer and a small badge. */
+@Composable
+private fun GoalLine(s: PageStyle, goal: Goal, team: Side) {
+    Row(Modifier.fillMaxWidth().height(46.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(68.dp), contentAlignment = Alignment.CenterEnd) {
+            T(goal.label, s.numbers, 24, s.muted, weight = s.numbersWeight)
+        }
+        Spacer(Modifier.width(12.dp))
+        Box(Modifier.width(4.dp).height(26.dp).background(if (goal.home) s.accent else s.muted))
+        Spacer(Modifier.width(14.dp))
+        T(goal.player, s.body, 27, s.text, modifier = Modifier.weight(1f))
+        if (goal.note.isNotEmpty()) {
+            Spacer(Modifier.width(8.dp))
+            T(goal.note, s.body, 18, s.muted)
+        }
         Spacer(Modifier.width(10.dp))
-        T(text, s.body, 18, s.text)
+        TeamLogoSafe(team, 30)
     }
 }
 
@@ -554,56 +683,21 @@ private fun NumHeader(s: PageStyle, text: String, width: Int) {
 
 @Composable
 private fun TeamLine(s: PageStyle, row: com.prayerhome.tv.football.TableRow, live: String?, opened: Boolean) {
-    val isLive = live != null
-    val mark = if (isLive) s.red else if (opened) s.accent else s.muted
     Row(
         Modifier.width(TABLE_W).height(64.dp)
-            .box(
-                if (isLive) s.redBg else if (opened) s.surfaceFocus else s.surface,
-                if (opened) s.accent else if (isLive) s.red else s.border,
-                if (opened) 2.dp else 1.dp,
-                RoundedCornerShape(10.dp),
-            )
-            // Live and "your match" markers sit on the card's edges, outside the layout, so every
-            // row's columns line up exactly.
-            .drawBehind {
-                if (isLive) {
-                    drawRoundRect(
-                        color = s.red,
-                        topLeft = Offset(4.dp.toPx(), size.height / 2 - 15.dp.toPx()),
-                        size = Size(4.dp.toPx(), 30.dp.toPx()),
-                        cornerRadius = CornerRadius(2.dp.toPx()),
-                    )
-                }
-                if (opened) {
-                    drawRoundRect(
-                        color = s.accent,
-                        topLeft = Offset(size.width - 8.dp.toPx(), size.height / 2 - 15.dp.toPx()),
-                        size = Size(4.dp.toPx(), 30.dp.toPx()),
-                        cornerRadius = CornerRadius(2.dp.toPx()),
-                    )
-                }
-            }
+            // Your two teams are recessed into a darker shade of the page, not highlighted.
+            .box(if (opened) lerp(s.surface, s.bg, 0.82f) else s.surface, s.border, 1.dp, RoundedCornerShape(10.dp))
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(COL_RANK.dp), contentAlignment = Alignment.CenterStart) {
-            T("${row.rank}", s.numbers, 24, mark, weight = s.numbersWeight)
+            T("${row.rank}", s.numbers, 24, s.muted, weight = s.numbersWeight)
         }
         Spacer(Modifier.width(6.dp))
         TeamLogoSafe(Side(row.teamId, row.name, row.short, row.img), COL_BADGE)
         Spacer(Modifier.width(14.dp))
         Row(Modifier.width(COL_NAME.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (opened) {
-                Dot(s.accent, 7)
-                Spacer(Modifier.width(7.dp))
-            }
-            T(
-                row.name,
-                s.body, 32,
-                if (isLive) s.red else if (opened) s.accent else s.text,
-                modifier = Modifier.weight(1f, fill = false),
-            )
+            T(row.name, s.body, 32, s.text, modifier = Modifier.weight(1f, fill = false))
             if (live != null) {
                 Spacer(Modifier.width(12.dp))
                 Dot(s.red, 8)
@@ -611,13 +705,13 @@ private fun TeamLine(s: PageStyle, row: com.prayerhome.tv.football.TableRow, liv
                 T("LIVE $live", s.body, 17, s.red, weight = 600, spacing = 0.05f)
             }
         }
-        NumCell(s, "${row.played}", COL_STAT, if (isLive) s.red else if (opened) s.accent else s.muted, 27)
-        NumCell(s, "${row.won}", COL_STAT, if (isLive) s.red else if (opened) s.accent else s.text, 27)
-        NumCell(s, "${row.drawn}", COL_STAT, if (isLive) s.red else if (opened) s.accent else s.text, 27)
-        NumCell(s, "${row.lost}", COL_STAT, if (isLive) s.red else if (opened) s.accent else s.text, 27)
-        NumCell(s, signed(row.goalDiff), COL_GD, if (isLive) s.red else if (opened) s.accent else s.muted, 27)
+        NumCell(s, "${row.played}", COL_STAT, s.muted, 27)
+        NumCell(s, "${row.won}", COL_STAT, s.text, 27)
+        NumCell(s, "${row.drawn}", COL_STAT, s.text, 27)
+        NumCell(s, "${row.lost}", COL_STAT, s.text, 27)
+        NumCell(s, signed(row.goalDiff), COL_GD, s.muted, 27)
         Box(Modifier.width(COL_PTS.dp), contentAlignment = Alignment.CenterEnd) {
-            T("${row.points}", s.numbers, 32, if (isLive) s.red else s.accent, weight = 600)
+            T("${row.points}", s.numbers, 32, s.accent, weight = 600)
         }
         Spacer(Modifier.weight(1f))
     }
@@ -889,22 +983,7 @@ private fun TreeTieCard(s: PageStyle, m: HomeModel, tie: Tie, opened: Boolean) {
     val live = tie.isLive
     Column(
         Modifier.fillMaxSize()
-            .box(
-                if (live) s.redBg else s.surface,
-                if (opened) s.accent else if (live) s.red else s.border,
-                if (opened) 2.dp else 1.dp,
-                RoundedCornerShape(s.radius.dp),
-            )
-            .drawBehind {
-                if (opened) {
-                    drawRoundRect(
-                        color = s.accent,
-                        topLeft = Offset(4.dp.toPx(), size.height / 2 - 20.dp.toPx()),
-                        size = Size(4.dp.toPx(), 40.dp.toPx()),
-                        cornerRadius = CornerRadius(2.dp.toPx()),
-                    )
-                }
-            }
+            .box(if (opened) lerp(s.surface, s.bg, 0.82f) else s.surface, s.border, 1.dp, RoundedCornerShape(s.radius.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -939,7 +1018,6 @@ private fun TreeTeamRow(s: PageStyle, tie: Tie, home: Boolean, opened: Boolean) 
         else -> "TBD"
     }
     val color = when {
-        tie.isLive -> s.red
         won -> s.text
         side.id.isEmpty() -> s.muted
         tie.winner != 0 -> s.muted
@@ -955,7 +1033,7 @@ private fun TreeTeamRow(s: PageStyle, tie: Tie, home: Boolean, opened: Boolean) 
         T(name, s.body, 21, color, modifier = Modifier.weight(1f), weight = if (won) 600 else 400)
         if (score.isNotEmpty()) {
             Spacer(Modifier.width(8.dp))
-            T(score, s.numbers, 22, if (tie.isLive) s.red else s.text, weight = 600)
+            T(score, s.numbers, 22, s.text, weight = 600)
         }
     }
 }
