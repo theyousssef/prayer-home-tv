@@ -33,16 +33,18 @@ adb -s "$TV" shell appops set com.prayerhome.tv REQUEST_INSTALL_PACKAGES allow
 # lets Prayer Home switch the TV's screensaver off (Settings → Screensaver)
 adb -s "$TV" shell pm grant com.prayerhome.tv android.permission.WRITE_SECURE_SETTINGS
 
-# Google TV ignores third-party home apps while its own launcher (and the setup
-# "recovery" home) are enabled, so they are switched off. Undo: see README.md.
-echo
-echo "Switching off the Google TV launcher. Note: a Wi-Fi network saved during the TV's first setup"
-echo "may be forgotten when the setup app is switched off; if the TV drops off Wi-Fi, reconnect it"
-echo "in Settings → Network & Internet (see README.md)."
-adb -s "$TV" shell pm disable-user --user 0 com.google.android.apps.tv.launcherx >/dev/null || true
-adb -s "$TV" shell pm disable-user --user 0 com.google.android.tungsten.setupwraith >/dev/null || true
-adb -s "$TV" shell cmd package set-home-activity com.prayerhome.tv/.MainActivity
+# Google TV ignores third-party home apps while its own launcher (launcherx) is enabled. Switching it
+# and its setup app (setupwraith) off breaks other things (a Chromecast boots to a black screen and
+# drops out of Google Home), so they stay on and Prayer Home's accessibility service (HomeGuardService)
+# opens Prayer Home whenever the Google TV home screen comes up. Other services that are on stay on.
+GUARD=com.prayerhome.tv/com.prayerhome.tv.core.HomeGuardService
+current=$(adb -s "$TV" shell settings get secure enabled_accessibility_services | tr -d '\r')
+if [[ $current != *"$GUARD"* ]]; then
+  if [[ -z $current || $current == null ]]; then current=$GUARD; else current="$current:$GUARD"; fi
+  adb -s "$TV" shell settings put secure enabled_accessibility_services "$current"
+fi
+adb -s "$TV" shell settings put secure accessibility_enabled 1
 
 adb -s "$TV" shell input keyevent KEYCODE_HOME
-echo "Installed. Home now resolves to:"
-adb -s "$TV" shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1
+echo "Installed. In front now:"
+adb -s "$TV" shell dumpsys activity activities | grep -m1 topResumedActivity || true

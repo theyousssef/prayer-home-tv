@@ -48,13 +48,21 @@ and the TV on the same network.
    adb -s $TV shell appops set com.prayerhome.tv ASSOC_START allow   # TCL TVs only
    adb -s $TV shell pm grant com.prayerhome.tv android.permission.WRITE_SECURE_SETTINGS
    adb -s $TV shell appops set com.prayerhome.tv REQUEST_INSTALL_PACKAGES allow
-   adb -s $TV shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
-   adb -s $TV shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
-   adb -s $TV shell cmd package set-home-activity com.prayerhome.tv/.MainActivity
+   # turn on Prayer Home's home-screen service, keeping any others that are on
+   adb -s $TV shell settings get secure enabled_accessibility_services   # → <current>
+   adb -s $TV shell settings put secure enabled_accessibility_services "<current>:com.prayerhome.tv/com.prayerhome.tv.core.HomeGuardService"
+   adb -s $TV shell settings put secure accessibility_enabled 1
    ```
 
-Google TV ignores other home apps while its own launcher, and its setup app's fallback home
-screen, are enabled, so both are switched off. Undo below.
+Google TV ignores other home apps while its own launcher is enabled. Instead of switching Google's
+launcher off, Prayer Home turns on a small accessibility service that opens Prayer Home whenever the
+Google TV home screen comes up: after a restart, on Home, or on Back from an app. You may see the
+Google TV screen for a moment first.
+
+Earlier versions switched the Google TV launcher (`launcherx`) and its setup app (`setupwraith`) off.
+Don't do that: on a Chromecast with Google TV it leaves a black screen at every restart, and without
+`setupwraith` the device drops out of the Google Home app. If you did, turn them back on with the
+first two lines under *Undo*.
 
 `SYSTEM_ALERT_WINDOW` lets the chime and match banners show over other apps. `WRITE_SECURE_SETTINGS`
 lets Prayer Home switch the screensaver off (Settings → Screensaver); without it that setting does
@@ -64,14 +72,9 @@ silently, and match banners stop until Home is opened again. `REQUEST_INSTALL_PA
 lets Prayer Home install its own updates; without it the TV asks before each update. If it's
 off, Home explains this and offers to open the switch for you.
 
-> **Wi‑Fi warning.** If your Wi‑Fi network was saved during the TV's first-time setup, switching off
-> the setup app (`setupwraith`) can make the TV forget it. Your adb connection then drops. If that
-> happens, reconnect in Settings → Network & Internet. Once you re-add it there, the network is
-> saved by Settings and stays saved.
-
 ### Remote buttons
 
-With the Google TV launcher off, the remote's YouTube, Settings and TV buttons may do
+If you switched the Google TV launcher off, the remote's YouTube, Settings and TV buttons may do
 nothing, because Android sends them only to that launcher. Install the companion app
 **[Custom Mapper](https://github.com/theyousssef/custom-mapper-tv)** to make them work again. You
 can also make any button open what you like.
@@ -85,6 +88,9 @@ adb -s $TV shell pm enable com.google.android.tungsten.setupwraith
 adb -s $TV shell cmd package set-home-activity com.google.android.apps.tv.launcherx/.home.HomeActivity
 adb -s $TV uninstall com.prayerhome.tv   # optional
 ```
+
+Without uninstalling, also switch *Prayer Home* off in Settings → System → Accessibility, or it keeps
+taking over the Google TV home screen.
 
 ## Using it
 

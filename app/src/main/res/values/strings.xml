@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Prayer Home</string>
+    <string name="home_guard_description">Opens Prayer Home whenever the Google TV home screen comes up.</string>
 </resources>
