@@ -76,6 +76,16 @@ object PrayerSchedule {
         return maghrib.plus(Duration.between(maghrib, fajr).dividedBy(2))
     }
 
+    /** (Isha, midnight) of the night [now] is in, while it is between the two; else null. */
+    fun midnightAhead(prefs: Prefs, now: Instant): Pair<Instant, Instant>? {
+        val date = now.atZone(zoneOf(prefs)).toLocalDate()
+        // from yesterday: after 00:00 the night (and its midnight) may still be yesterday's
+        return listOf(date.minusDays(1), date).firstNotNullOfOrNull { d ->
+            val isha = slotsFor(prefs, d).first { it.prayer == Prayer.ISHA }.at
+            midnightAfter(prefs, d).takeIf { now >= isha && now < it }?.let { isha to it }
+        }
+    }
+
     /** The next chime strictly after [now]: [leadFor] minutes before a prayer, or [Prefs.chimeMinutes] before midnight. */
     fun nextChime(prefs: Prefs, now: Instant): ChimeTarget {
         val zone = zoneOf(prefs)

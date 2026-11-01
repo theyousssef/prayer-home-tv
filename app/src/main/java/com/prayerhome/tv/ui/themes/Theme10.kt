@@ -101,8 +101,8 @@ private fun Home10(m: HomeModel, nav: Nav, first: FocusRequester) {
         }
 
         Column(Modifier.fillMaxWidth().padding(top = 150.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            T("NEXT PRAYER · ${n.time}", Fonts.Karla, 18, MUTED, spacing = 0.5f, modifier = Modifier.padding(bottom = 30.dp))
-            Ar(n.name, Fonts.Ruwudu, 250, if (n.urgent) INK else GOLD, weight = 700, lineHeight = 1.35f, latin = Fonts.Italiana, latinSize = 210, latinWeight = 400, latinLineHeight = 1.15f)
+            T("${n.heading} · ${n.time}", Fonts.Karla, 18, MUTED, spacing = 0.5f, modifier = Modifier.padding(bottom = 30.dp))
+            Ar(n.name, Fonts.Ruwudu, 250, if (n.urgent) INK else GOLD, weight = 700, lineHeight = 1.35f, latin = Fonts.Italiana, latinSize = 210, latinWeight = 400, latinLineHeight = 1.15f, fit = true)
             Row(Modifier.width(760.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                 Box(Modifier.weight(1f).height(1.dp).background(hex(0x4A4130)))
                 Ornament()

@@ -91,14 +91,14 @@ private fun Home04(m: HomeModel, nav: Nav, first: FocusRequester) {
             Box(Modifier.width(1.dp).fillMaxHeight().background(RULE))
             Column(Modifier.width(640.dp).fillMaxHeight().padding(start = 56.dp), verticalArrangement = Arrangement.Center) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    T("NEXT PRAYER · ${n.time}", Fonts.WorkSans, 20, MUTED, spacing = 0.22f)
+                    T("${n.heading} · ${n.time}", Fonts.WorkSans, 20, MUTED, spacing = 0.22f)
                     Spacer(Modifier.weight(1f))
                     val chip = if (n.urgent) RED else MUTED
                     Icon(Ico.BELL, chip, 20)
                     Spacer(Modifier.width(8.dp))
                     T(if (n.urgent) "Chime played" else "Chime ${n.chimeAt}", Fonts.WorkSans, 20, chip, spacing = 0.06f)
                 }
-                Ar(n.name, Fonts.ArefRuqaa, 136, INK, weight = 700, lineHeight = 1.35f, align = TextAlign.Right, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), latin = Fonts.DmSerif, latinSize = 128, latinWeight = 400)
+                Ar(n.name, Fonts.ArefRuqaa, 136, INK, weight = 700, lineHeight = 1.35f, align = TextAlign.Right, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), latin = Fonts.DmSerif, latinSize = 128, latinWeight = 400, fit = true)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(26.dp, Alignment.End), verticalAlignment = Alignment.Bottom) {
                     for ((v, l) in n.groups) {
                         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

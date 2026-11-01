@@ -146,8 +146,8 @@ private fun Home07(m: HomeModel, nav: Nav, first: FocusRequester) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            T("NEXT PRAYER", Fonts.Sora, 18, MUTED, spacing = 0.3f)
-            Ar(n.name, Fonts.NotoKufi, 88, INK, weight = 600, lineHeight = 1.5f, latin = Fonts.Sora, latinSize = 70, latinWeight = 300, latinLineHeight = 1.4f)
+            T(n.heading, Fonts.Sora, 18, MUTED, spacing = 0.3f)
+            Ar(n.name, Fonts.NotoKufi, 88, INK, weight = 600, lineHeight = 1.5f, latin = Fonts.Sora, latinSize = 70, latinWeight = 300, latinLineHeight = 1.4f, fit = true)
             CountdownGroups(n.groups, cd, Fonts.Sora, 84, 300, Fonts.Sora, 15, 0.26f, sepSize = 72, gap = 10, sepWeight = 200, labelGap = 8)
             val chip = if (n.urgent) RED else MUTED
             Row(Modifier.padding(top = 22.dp), verticalAlignment = Alignment.CenterVertically) {

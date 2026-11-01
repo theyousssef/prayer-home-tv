@@ -126,8 +126,8 @@ private fun Home06(m: HomeModel, nav: Nav, first: FocusRequester) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            T("NEXT PRAYER", Fonts.Figtree, 18, CREAM, spacing = 0.3f)
-            Ar(n.name, Fonts.Rakkas, 108, INK, lineHeight = 1.35f, modifier = Modifier.padding(top = 14.dp), latin = Fonts.Fraunces, latinSize = 76, latinWeight = 400, latinLineHeight = 1.3f)
+            T(n.heading, Fonts.Figtree, 18, CREAM, spacing = 0.3f)
+            Ar(n.name, Fonts.Rakkas, 108, INK, lineHeight = 1.35f, modifier = Modifier.padding(top = 14.dp), latin = Fonts.Fraunces, latinSize = 76, latinWeight = 400, latinLineHeight = 1.3f, fit = true)
             T("at ${n.time}", Fonts.Figtree, 26, CREAM, modifier = Modifier.padding(bottom = 20.dp))
             CountdownGroups(n.groups, cd, Fonts.Fraunces, 80, 500, Fonts.Figtree, 15, 0.26f, sepSize = 70, gap = 10)
         }

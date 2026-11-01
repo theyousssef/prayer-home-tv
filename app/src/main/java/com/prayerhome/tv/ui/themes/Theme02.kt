@@ -114,8 +114,8 @@ private fun Home02(m: HomeModel, nav: Nav, first: FocusRequester) {
                 ) {
                     Rosette(88, BRASS)
                     Spacer(Modifier.height(30.dp))
-                    T("NEXT PRAYER", Fonts.Manrope, 20, MUTED, spacing = 0.32f)
-                    Ar(n.name, Fonts.ReemKufi, 150, INK, weight = 600, lineHeight = 1.3f, latin = Fonts.Marcellus, latinSize = 120, latinWeight = 400)
+                    T(n.heading, Fonts.Manrope, 20, MUTED, spacing = 0.32f)
+                    Ar(n.name, Fonts.ReemKufi, 150, INK, weight = 600, lineHeight = 1.3f, latin = Fonts.Marcellus, latinSize = 120, latinWeight = 400, fit = true)
                     T("at ${n.time}", Fonts.Manrope, 30, MUTED)
                     Spacer(Modifier.height(44.dp))
                     CountdownGroups(n.groups, cd, Fonts.Marcellus, 130, 400, Fonts.Manrope, 18, 0.28f, sepSize = 110, gap = 14, labelGap = 8)

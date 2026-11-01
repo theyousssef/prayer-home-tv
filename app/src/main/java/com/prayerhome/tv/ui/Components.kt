@@ -9,6 +9,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -27,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -138,7 +140,23 @@ fun Ar(
     latinSpacing: Float = 0f,
     latinLineHeight: Float = lineHeight,
     latinItalic: Boolean = false,
+    /** Shrink the text so one line fits the width it is given (long names like منتصف الليل in big display slots). */
+    fit: Boolean = false,
 ) {
+    if (fit) {
+        BoxWithConstraints {
+            val measurer = rememberTextMeasurer()
+            val arabic = hasArabic(text)
+            val shown = if (arabic && nbsp) text.replace(' ', '\u00A0') else text
+            val st = if (arabic) style(font, size, color, weight, 0f, 0f, align, false)
+                else style(latin ?: font, latinSize, color, latinWeight, latinSpacing, 0f, align, latinItalic)
+            val width = measurer.measure(shown, st, maxLines = 1, softWrap = false).size.width
+            val scale = if (constraints.hasBoundedWidth && width > constraints.maxWidth) constraints.maxWidth.toFloat() / width else 1f
+            Ar(text, font, (size * scale).toInt(), color, modifier, weight, lineHeight, align, maxLines, digits, nbsp,
+                latin, (latinSize * scale).toInt(), latinWeight, latinSpacing, latinLineHeight, latinItalic)
+        }
+        return
+    }
     if (!hasArabic(text)) {
         T(text, latin ?: font, latinSize, color, modifier, latinWeight, latinSpacing, latinLineHeight, align, latinItalic, maxLines)
         return

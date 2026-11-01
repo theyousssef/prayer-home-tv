@@ -148,8 +148,8 @@ private fun Arch01(m: HomeModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Bottom,
     ) {
-        T("NEXT PRAYER", Fonts.Jost, 20, MUTED, spacing = 0.3f)
-        Ar(n.name, Fonts.Amiri, 110, INK, weight = 700, lineHeight = 1.1f, latin = Fonts.Cormorant, latinSize = 104, latinWeight = 600)
+        T(n.heading, Fonts.Jost, 20, MUTED, spacing = 0.3f)
+        Ar(n.name, Fonts.Amiri, 110, INK, weight = 700, lineHeight = 1.1f, latin = Fonts.Cormorant, latinSize = 104, latinWeight = 600, fit = true)
         T("at ${n.time}", Fonts.Jost, 28, MUTED, modifier = Modifier.padding(bottom = 18.dp))
         CountdownGroups(n.groups, cd, Fonts.Cormorant, 100, 600, Fonts.Jost, 17, 0.25f, sepSize = 90, gap = 16)
     }
