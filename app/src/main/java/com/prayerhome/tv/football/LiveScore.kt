@@ -42,6 +42,13 @@ object LiveScore {
     /** One competition's knockout draw, or null when the competition has none (LiveScore answers 410). */
     fun competitionDraw(compId: String): String? = getOrNull("$BASE/competition/$compId/draw")
 
+    /**
+     * One stage's table and fixtures, by category and stage slug ("egypt", "league-cup-group-a").
+     * This is how a competition that the day feed lists without a competition id is reached; a stage
+     * that doesn't exist answers 410, which is null here.
+     */
+    fun stageTable(cat: String, scd: String): String? = getOrNull("$BASE/stage/soccer/$cat/$scd/0")
+
     /** [teamIds] null keeps every match; an empty set keeps none. */
     private fun parse(body: String, teamIds: Set<String>?, collectTeams: Boolean): Page {
         val stages = JSONObject(body).optJSONArray("Stages") ?: JSONArray()
@@ -81,6 +88,7 @@ object LiveScore {
                     comp = comp,
                     stage = stage,
                     cat = cat,
+                    scd = s.optString("Scd"),
                 )
             }
         }
@@ -127,13 +135,13 @@ object LiveScore {
         .put("id", m.id).put("k", m.kickoff.epochSecond)
         .put("h", sideJson(m.home)).put("a", sideJson(m.away))
         .put("hs", m.homeScore).put("as", m.awayScore)
-        .put("st", m.status).put("sc", m.statusCode).put("lg", m.league).put("cp", m.comp).put("sg", m.stage).put("ct", m.cat)
+        .put("st", m.status).put("sc", m.statusCode).put("lg", m.league).put("cp", m.comp).put("sg", m.stage).put("ct", m.cat).put("sd", m.scd)
 
     fun fromJson(o: JSONObject) = Match(
         o.getString("id"), Instant.ofEpochSecond(o.getLong("k")),
         sideFrom(o.getJSONObject("h")), sideFrom(o.getJSONObject("a")),
         o.optString("hs"), o.optString("as"), o.optString("st"), o.optInt("sc"), o.optString("lg"),
-        o.optString("cp"), o.optString("sg"), o.optString("ct"),
+        o.optString("cp"), o.optString("sg"), o.optString("ct"), o.optString("sd"),
     )
 
     private fun sideJson(s: Side) = JSONObject().put("i", s.id).put("n", s.name).put("s", s.short).put("m", s.img)

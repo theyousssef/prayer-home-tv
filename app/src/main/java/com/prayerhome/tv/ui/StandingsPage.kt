@@ -2,7 +2,6 @@ package com.prayerhome.tv.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
@@ -67,6 +66,7 @@ import com.prayerhome.tv.football.LiveNow
 import com.prayerhome.tv.football.Match
 import com.prayerhome.tv.football.MatchState
 import com.prayerhome.tv.football.Side
+import com.prayerhome.tv.football.standingsKey
 import com.prayerhome.tv.football.Tie
 import com.prayerhome.tv.ui.themes.TeamLogoSafe
 import kotlinx.coroutines.CoroutineScope
@@ -103,22 +103,24 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
     val ctx = LocalContext.current
     val repo = App.of(ctx).standings
     val goalsRepo = App.of(ctx).goals
-    val compId = match.comp
+    // The competition's id, or — for a competition LiveScore lists without one (Egypt's League Cup,
+    // for one) — its stage, so the panel has something to ask for either way.
+    val key = standingsKey(match)
     // The Matches page keeps polling this match while it is live; follow that fresh copy so the
     // side card's score and final whistle don't stick at the values from the moment it was opened.
     val shown = m.allMatches.firstOrNull { it.id == match.id } ?: match
 
     // A memory copy can carry the last visit's live marks; the live feed below repaints them.
-    var data by remember(compId) { mutableStateOf(repo.cached(compId)?.copy(live = LiveNow())) }
-    var failed by remember(compId) { mutableStateOf(false) }
-    var refreshing by remember(compId) { mutableStateOf(false) }
-    var fromCache by remember(compId) { mutableStateOf(data != null) }
-    var retry by remember(compId) { mutableIntStateOf(0) }
-    var updatedAt by remember(compId) { mutableStateOf<Instant?>(null) }
+    var data by remember(key) { mutableStateOf(repo.cached(key)?.copy(live = LiveNow())) }
+    var failed by remember(key) { mutableStateOf(false) }
+    var refreshing by remember(key) { mutableStateOf(false) }
+    var fromCache by remember(key) { mutableStateOf(data != null) }
+    var retry by remember(key) { mutableIntStateOf(0) }
+    var updatedAt by remember(key) { mutableStateOf<Instant?>(null) }
     // The user's choice when a competition has both a table and a draw (e.g. the UCL in spring).
-    var chosen by remember(compId) { mutableStateOf<StandingsMode?>(null) }
-    var stageIdx by remember(compId) { mutableIntStateOf(-1) }
-    var drawIdx by remember(compId) { mutableIntStateOf(0) }
+    var chosen by remember(key) { mutableStateOf<StandingsMode?>(null) }
+    var stageIdx by remember(key) { mutableIntStateOf(-1) }
+    var drawIdx by remember(key) { mutableIntStateOf(0) }
     // Who scored. The result, the minute and the state are not read here: they are the fresh Match
     // from the list below, the same values as the matches list, the home screen and the banners. The
     // score is part of the key, so a goal restarts this loop and its scorer is read right away; the
@@ -142,12 +144,12 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
         }
     }
 
-    LaunchedEffect(compId, retry) {
-        if (compId.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(key, retry) {
+        if (key.isEmpty()) return@LaunchedEffect
         // 1. The saved copy (memory, then the week-long file) for an instant first frame. Reading it
         //    also restarts its week, even when it was already in memory. Live marks from an earlier
         //    visit are dropped: the live feed below paints the ones that are true now.
-        val saved = runCatching { repo.loadCached(compId) }.getOrNull()
+        val saved = runCatching { repo.loadCached(key) }.getOrNull()
         if (saved != null && data == null) {
             data = saved.copy(live = LiveNow())
             fromCache = true
@@ -160,7 +162,7 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
             val now = m.now
             // 2. The small live feed: the red rows, the ticking minutes, and the signal that a tie
             //    has just ended (which means the table itself needs one more download).
-            val liveNow = runCatching { repo.live(compId) }.getOrNull()
+            val liveNow = runCatching { repo.live(key) }.getOrNull()
             val before = data
             if (liveNow != null && before != null) {
                 val (next, ended) = before.applyLive(liveNow)
@@ -168,7 +170,7 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
                 if (ended) lastFull = Instant.EPOCH
             }
             // 3. Is anything around kick-off? Only then is the table downloaded again.
-            val fixtures = fixturesOf(compId, shown, m.allMatches, data)
+            val fixtures = fixturesOf(key, shown, m.allMatches, data)
             val onPitch = liveNow?.teams?.isNotEmpty() == true || fixtures.any { it.state == MatchState.LIVE }
             val nearKickoff = fixtures.any { kotlin.math.abs(Duration.between(now, it.kickoff).seconds) <= NEAR_KICKOFF.seconds }
             val justFinished = first && fixtures.any { it.state == MatchState.FINISHED && it.kickoff.isAfter(now.minus(RECENT_RESULT)) }
@@ -176,7 +178,7 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
             val due = first || Duration.between(lastFull, now).seconds >= LIVE_EVERY_MS / 1000
             if ((onPitch || nearKickoff || justFinished || mustLoad) && due) {
                 refreshing = true
-                val fresh = runCatching { repo.refresh(compId) }.getOrNull()
+                val fresh = runCatching { repo.refresh(key) }.getOrNull()
                 refreshing = false
                 lastFull = now
                 if (fresh != null) {
@@ -254,7 +256,7 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
                 val at = updatedAt
                 T(
                     when {
-                        compId.isEmpty() -> ""
+                        key.isEmpty() -> ""
                         refreshing -> if (data == null) "Loading…" else "Updating…"
                         fromCache -> "Saved copy"
                         at != null -> "Updated ${DateText.time(at, m.day.zone)}"
@@ -272,7 +274,7 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
 
             when {
                 // A few of LiveScore's small feeds (Egypt's League Cup, for one) carry no competition id.
-                compId.isEmpty() -> EmptyState(s, "No standings for this competition yet", Modifier.weight(1f))
+                key.isEmpty() -> EmptyState(s, "No standings for this competition yet", Modifier.weight(1f))
                 d == null && !failed -> LoadingState(s, match.league, Modifier.weight(1f))
                 d == null -> ErrorState(s, Modifier.weight(1f)) { failed = false; retry++ }
                 mode == StandingsMode.TABLE -> TableView(
@@ -293,10 +295,10 @@ fun StandingsScreen(s: PageStyle, m: HomeModel, match: Match, onBack: () -> Unit
 /** The competition's kick-off times we already know about: the opened match, the team list, the draw. */
 private class Fixture(val kickoff: Instant, val state: MatchState)
 
-private fun fixturesOf(compId: String, shown: Match, all: List<Match>, c: Competition?): List<Fixture> {
+private fun fixturesOf(key: String, shown: Match, all: List<Match>, c: Competition?): List<Fixture> {
     val out = ArrayList<Fixture>()
-    if (compId.isNotEmpty()) out += Fixture(shown.kickoff, shown.state)
-    all.forEach { if (it.comp == compId && it.id != shown.id) out += Fixture(it.kickoff, it.state) }
+    if (key.isNotEmpty()) out += Fixture(shown.kickoff, shown.state)
+    all.forEach { if (it.id != shown.id && standingsKey(it) == key) out += Fixture(it.kickoff, it.state) }
     c?.bracket?.draws?.forEach { draw ->
         draw.rounds.forEach { round ->
             round.ties.forEach { tie -> if (tie.kickoff != Instant.EPOCH) out += Fixture(tie.kickoff, tie.state) }
@@ -392,7 +394,7 @@ private fun TableView(
     modifier: Modifier,
 ) {
     if (c.tables.isEmpty()) {
-        EmptyState(s, "No table for this competition yet", modifier)
+        EmptyState(s, "No standings for this competition yet", modifier)
         return
     }
     val stage = c.tables[stageIndex.coerceIn(0, c.tables.lastIndex)]
@@ -400,7 +402,6 @@ private fun TableView(
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val focusReq = remember { FocusRequester() }
-    var focused by remember { mutableStateOf(false) }
     val rowPx = with(LocalDensity.current) { ROW_STEP.dp.toPx() }
     val showGroups = stage.groups.size > 1
     // Focus moves into the table once; picking another stage keeps focus on that picker.
@@ -446,7 +447,6 @@ private fun TableView(
             Box(
                 Modifier.fillMaxWidth().weight(1f).clipToBounds()
                     .focusRequester(focusReq)
-                    .onFocusChanged { focused = it.isFocused }
                     .onKeyEvent { e -> tableKeys(e, list, scope, rowPx, onBack) }
                     .focusable(),
             ) {
@@ -474,10 +474,6 @@ private fun TableView(
                             }
                         }
                     }
-                }
-                // A faint frame: it says "the D-pad scrolls here" without marking any team.
-                if (focused) {
-                    Box(Modifier.matchParentSize().border(1.dp, s.accent.copy(alpha = 0.3f), RoundedCornerShape(10.dp)))
                 }
             }
         }

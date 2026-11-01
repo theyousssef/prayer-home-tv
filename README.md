@@ -129,7 +129,9 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   red `LIVE 67'` tag and its points in the same red. The table always opens at #1 and only scrolls when the higher of your two teams
   is below the first screenful — two teams in the same match (say 4th and 17th) leave it at the top. The UCL league phase is split after 8th and 24th, and a group phase published as
   one stage per group (a World Cup's twelve groups, the CAF Champions League's four) is merged into a
-  single table. The bracket is a real
+  single table. A competition the feed lists with no competition id at all (Egypt's League Cup, for
+  one) is read from its stage instead, and a cup whose groups are one stage each is shown as a single
+  table running down from Group A. The bracket is a real
   tree with connecting lines, and it scrolls in both directions: every round and every tie of the
   draw is reachable with the D-pad, your tie's path to the final is lit in the accent colour, and
   only the ties in view are composed, so a 176-tie round stays cheap. The table and the tree are

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -85,6 +86,32 @@ data class LiveNow(
     val isEmpty: Boolean get() = teams.isEmpty() && events.isEmpty()
 }
 
+private const val STAGE_PREFIX = "stage:"
+
+/**
+ * What the panel opens for this match: its competition id when the feed has one, otherwise its stage
+ * as `stage:{category}/{slug}`. Some competitions — Egypt's League Cup, for one — are listed with no
+ * competition id at all, and the only way to their table is the stage slug.
+ */
+fun standingsKey(m: Match): String = when {
+    m.comp.isNotEmpty() -> m.comp
+    m.cat.isNotEmpty() && m.scd.isNotEmpty() -> "$STAGE_PREFIX${m.cat}/${m.scd}"
+    else -> ""
+}
+
+/** True for a `stage:{category}/{slug}` key, i.e. a competition the feed lists without an id. */
+fun isStageKey(key: String): Boolean = key.startsWith(STAGE_PREFIX)
+
+/** A stage's siblings share its slug up to the group letter: "…-group-" from "…-group-c". */
+private fun groupPrefix(scd: String): String? =
+    Regex("^(.*-group-)([a-z])$").find(scd)?.groupValues?.get(1)
+
+private fun splitStage(key: String): Pair<String, String> {
+    val rest = key.removePrefix(STAGE_PREFIX)
+    val at = rest.indexOf('/')
+    return if (at < 0) rest to "" else rest.substring(0, at) to rest.substring(at + 1)
+}
+
 /**
  * Everything the standings panel shows for one competition: its table (if it has one), its cup
  * draw (if it has one), and who is playing right now.
@@ -148,51 +175,51 @@ class StandingsRepo(private val context: Context) {
     private var swept = false
 
     /** What is in memory right now, for an immediate first frame. */
-    fun cached(compId: String): Competition? = mem[compId]?.data
+    fun cached(key: String): Competition? = mem[key]?.data
 
     /**
-     * The saved copy of [compId] (memory first, then disk), or null when there is none or it is
+     * The saved copy of [key] (memory first, then disk), or null when there is none or it is
      * older than [WEEK_MS]. Opening it restarts that week.
      */
-    suspend fun loadCached(compId: String): Competition? = withContext(Dispatchers.IO) {
-        if (compId.isEmpty()) return@withContext null
-        mem[compId]?.data?.let { touch(compId); return@withContext it }
+    suspend fun loadCached(key: String): Competition? = withContext(Dispatchers.IO) {
+        if (key.isEmpty()) return@withContext null
+        mem[key]?.data?.let { touch(key); return@withContext it }
         mutex.withLock {
-            mem[compId]?.data?.let { touch(compId); return@withLock it }
+            mem[key]?.data?.let { touch(key); return@withLock it }
             if (!swept) { sweep(); swept = true }
-            val f = file(compId)
+            val f = file(key)
             if (!f.exists()) return@withLock null
             if (System.currentTimeMillis() - f.lastModified() > WEEK_MS) {
                 f.delete()
                 return@withLock null
             }
             val o = runCatching { JSONObject(f.readText()) }.getOrNull() ?: return@withLock null
-            val data = runCatching { readCache(compId, o) }.getOrNull()
+            val data = runCatching { readCache(key, o) }.getOrNull()
             if (data == null || (!data.hasTable && !data.hasBracket)) return@withLock null
-            mem[compId] = Entry(data, Instant.now())
-            touch(compId)
+            mem[key] = Entry(data, Instant.now())
+            touch(key)
             data
         }
     }
 
     /** Downloads the competition now (the panel does this once per open) and saves it for a week. */
-    suspend fun refresh(compId: String): Competition = withContext(Dispatchers.IO) {
+    suspend fun refresh(key: String): Competition = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val got = fetch(compId)
-            save(compId, got.table, got.draw)
-            mem[compId] = Entry(got.data, Instant.now())
+            val got = fetch(key)
+            save(key, got.table, got.draw)
+            mem[key] = Entry(got.data, Instant.now())
             if (mem.size > KEEP) mem.entries.minByOrNull { it.value.at }?.let { mem.remove(it.key) }
             got.data
         }
     }
 
-    /** The matches of [compId] in play right now; a ~10–30 KB request. */
-    suspend fun live(compId: String): LiveNow = withContext(Dispatchers.IO) {
-        liveOf(LiveScore.liveAll(), compId)
+    /** The matches of [key] in play right now; a ~10–30 KB request. */
+    suspend fun live(key: String): LiveNow = withContext(Dispatchers.IO) {
+        liveOf(LiveScore.liveAll(), key)
     }
 
-    private fun liveOf(all: List<Match>, compId: String): LiveNow {
-        val matches = all.filter { it.comp == compId }
+    private fun liveOf(all: List<Match>, key: String): LiveNow {
+        val matches = all.filter { if (isStageKey(key)) inStage(it, key) else it.comp == key }
         val teams = HashMap<String, String>(matches.size * 2)
         val events = HashMap<String, LiveEvent>(matches.size)
         for (m in matches) {
@@ -203,13 +230,22 @@ class StandingsRepo(private val context: Context) {
         return LiveNow(teams, events)
     }
 
+    /** True for a match of the stage the key names — that group, or any of its sibling groups. */
+    private fun inStage(m: Match, key: String): Boolean {
+        val (cat, scd) = splitStage(key)
+        if (m.cat != cat || m.scd.isEmpty()) return false
+        val prefix = groupPrefix(scd)
+        return if (prefix != null) m.scd.startsWith(prefix) else m.scd == scd
+    }
+
     // ------------------------------------------------------------------ disk cache
 
-    private fun file(compId: String) = File(dir, "$compId.json")
+    /** A key like `stage:egypt/league-cup-group-a` has to become a plain file name. */
+    private fun file(key: String) = File(dir, key.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".json")
 
     /** Pushes the week out again, so a competition you keep opening never gets swept. */
-    private fun touch(compId: String) {
-        runCatching { file(compId).setLastModified(System.currentTimeMillis()) }
+    private fun touch(key: String) {
+        runCatching { file(key).setLastModified(System.currentTimeMillis()) }
     }
 
     private fun sweep() {
@@ -217,36 +253,40 @@ class StandingsRepo(private val context: Context) {
         dir.listFiles()?.forEach { if (now - it.lastModified() > WEEK_MS) it.delete() }
     }
 
-    private fun save(compId: String, table: String?, draw: String?) {
+    private fun save(key: String, table: String?, draw: String?) {
         runCatching {
             val o = JSONObject()
                 .put("v", 1)
                 .put("at", Instant.now().epochSecond)
                 .put("table", table.orEmpty())
                 .put("draw", draw.orEmpty())
-            val f = file(compId)
-            val tmp = File(dir, "$compId.part")
+            val f = file(key)
+            val tmp = File(dir, f.name.removeSuffix(".json") + ".part")
             tmp.writeText(o.toString())
             tmp.renameTo(f)
         }
     }
 
-    private fun readCache(compId: String, o: JSONObject): Competition {
+    private fun readCache(key: String, o: JSONObject): Competition {
         val table = o.optString("table")
         val draw = o.optString("draw")
         val tables = if (table.isNotEmpty()) parseTables(table) else emptyList()
         val bracket = if (draw.isNotEmpty()) parseBracket(draw) else null
         val (name, country) = names(table)
-        return Competition(compId, name, country, tables, bracket)
+        return Competition(key, name, country, tables, bracket)
     }
 
     // ------------------------------------------------------------------ network
 
     private class Fetched(val data: Competition, val table: String?, val draw: String?)
 
-    private suspend fun fetch(compId: String): Fetched = coroutineScope {
-        val tableBody = async { runCatching { LiveScore.competitionTable(compId) } }
-        val drawBody = async { runCatching { LiveScore.competitionDraw(compId) } }
+    private suspend fun fetch(key: String): Fetched =
+        if (isStageKey(key)) fetchStage(key) else fetchCompetition(key)
+
+    /** A competition with an id: its table and its draw, in parallel. */
+    private suspend fun fetchCompetition(key: String): Fetched = coroutineScope {
+        val tableBody = async { runCatching { LiveScore.competitionTable(key) } }
+        val drawBody = async { runCatching { LiveScore.competitionDraw(key) } }
         val liveAll = async { runCatching { LiveScore.liveAll() }.getOrNull() }
         val t = tableBody.await()
         val d = drawBody.await()
@@ -260,16 +300,62 @@ class StandingsRepo(private val context: Context) {
             (t.exceptionOrNull() ?: d.exceptionOrNull())?.let { throw it }
         }
         val (name, country) = names(table)
-        val live = liveAll.await()?.let { liveOf(it, compId) } ?: LiveNow()
-        Log.i(TAG, "competition $compId: ${tables.size} stages, ${bracket?.draws?.size ?: 0} draws, ${live.teams.size / 2} live teams")
-        Fetched(Competition(compId, name, country, tables, bracket, live), table, draw)
+        val live = liveAll.await()?.let { liveOf(it, key) } ?: LiveNow()
+        Log.i(TAG, "competition $key: ${tables.size} stages, ${bracket?.draws?.size ?: 0} draws, ${live.teams.size / 2} live teams")
+        Fetched(Competition(key, name, country, tables, bracket, live), table, draw)
+    }
+
+    /**
+     * A competition the feed lists with no id: its table is the stage's own, reached by category and
+     * slug. A cup's groups are one stage each, so the siblings are read in parallel and shown as the
+     * groups of one table, Group A to Group D.
+     */
+    private suspend fun fetchStage(key: String): Fetched = coroutineScope {
+        val (cat, scd) = splitStage(key)
+        val bodies = stageBodies(cat, scd)
+        // One body for the cache as well, so the saved copy re-parses into the same stages.
+        val table = if (bodies.isEmpty()) null else mergeBodies(bodies)
+        val tables = table?.let { b -> runCatching { parseTables(b) }.getOrDefault(emptyList()) } ?: emptyList()
+        val liveAll = async { runCatching { LiveScore.liveAll() }.getOrNull() }
+        val (name, country) = names(table)
+        val live = liveAll.await()?.let { liveOf(it, key) } ?: LiveNow()
+        Log.i(
+            TAG,
+            "stage $key: ${tables.sumOf { it.groups.size }} groups from ${bodies.size} stages, " +
+                "${live.teams.size / 2} live teams",
+        )
+        Fetched(Competition(key, name, country, tables, null, live), table, null)
+    }
+
+    /** The stage's body, or — for a group stage — every group of it, in order, up to the first gap. */
+    private suspend fun stageBodies(cat: String, scd: String): List<String> = coroutineScope {
+        val prefix = groupPrefix(scd)
+        if (prefix == null) {
+            listOfNotNull(async { LiveScore.stageTable(cat, scd) }.await())
+        } else {
+            val bodies = ('a'..'h').map { letter -> async { LiveScore.stageTable(cat, prefix + letter) } }.awaitAll()
+            bodies.takeWhile { it != null }.filterNotNull()
+        }
+    }
+
+    /** Several stage bodies as one, so [parseTables] reads them as the stages of a single competition. */
+    private fun mergeBodies(bodies: List<String>): String {
+        val stages = JSONArray()
+        bodies.forEach { body ->
+            val a = runCatching { JSONObject(body).optJSONArray("Stages") }.getOrNull() ?: return@forEach
+            for (i in 0 until a.length()) stages.put(a.getJSONObject(i))
+        }
+        return JSONObject().put("Stages", stages).toString()
     }
 
     private fun names(table: String?): Pair<String, String> {
         if (table.isNullOrEmpty()) return "" to ""
         return runCatching {
             val stage = JSONObject(table).optJSONArray("Stages")?.optJSONObject(0)
-            (stage?.optString("CompN").orEmpty()) to (stage?.optString("CompD").orEmpty())
+            // A competition's body names it; a stage's body only carries its own name and country.
+            val name = stage?.optString("CompN").orEmpty().ifEmpty { stage?.optString("Snm").orEmpty().substringBefore(':').trim() }
+            val country = stage?.optString("CompD").orEmpty().ifEmpty { stage?.optString("Cnm").orEmpty() }
+            name to country
         }.getOrDefault("" to "")
     }
 

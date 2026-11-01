@@ -186,7 +186,7 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
 
     companion object {
         /** Bumped when the cache format changes; older caches are refetched. */
-        private const val CACHE_VERSION = 5
+        private const val CACHE_VERSION = 6
 
         /** Live polling starts this long before kick-off. */
         val LEAD: Duration = Duration.ofMinutes(5)

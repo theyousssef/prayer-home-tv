@@ -53,6 +53,11 @@ data class Match(
     val stage: String = "",
     /** LiveScore's category slug ("spain", "england", "africa"...), used to find the match's own page. */
     val cat: String = "",
+    /**
+     * The stage's slug ("league-cup-group-a"). Some competitions are listed without a competition id,
+     * and their table can only be found by category + stage slug; see [standingsKey].
+     */
+    val scd: String = "",
 ) {
     val state: MatchState get() = stateOf(status, statusCode)
 
