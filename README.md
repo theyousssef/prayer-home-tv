@@ -61,7 +61,8 @@ lets Prayer Home switch the screensaver off (Settings → Screensaver); without 
 nothing. On TCL TVs, `AUTO_START` and `ASSOC_START` let the chime and match alarms start Prayer Home
 when Android has closed it in the background; without them TCL's app guard drops those alarms
 silently, and match banners stop until Home is opened again. `REQUEST_INSTALL_PACKAGES` (*Install unknown apps*)
-lets Prayer Home install its own updates; without it the TV asks before each update.
+lets Prayer Home install its own updates; without it the TV asks before each update. If it's
+off, Home explains this and offers to open the switch for you.
 
 > **Wi‑Fi warning.** If your Wi‑Fi network was saved during the TV's first-time setup, switching off
 > the setup app (`setupwraith`) can make the TV forget it. Your adb connection then drops. If that
@@ -185,8 +186,9 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
 - **Updates.** Once a day Prayer Home asks this repository for its latest release. When the
   release is newer than the installed version, it downloads the APK and installs it over itself
   the next time Home isn't on screen, without asking once *Install unknown apps* is allowed for it
-  (the install script does that). Your settings stay. Without that permission the TV's install
-  prompt shows the next time Home opens. A release's tag is its version (`v1.6`) and it carries `prayer-home.apk`, signed with the
+  (the install script does that). Your settings stay. While that permission is off, Home explains
+  why it's needed and opens the switch for you (asked again a week later after *Not now*), and the
+  TV's install prompt shows the next time Home opens. A release's tag is its version (`v1.6`) and it carries `prayer-home.apk`, signed with the
   same key as the installed app.
 - **Footprint.** About a 5 MB APK and about 60 MB of memory.
 
