@@ -243,10 +243,10 @@ fun AlertLine(m: HomeModel, font: FontFamily, size: Int, color: Color, arabic: F
     val s = buildAnnotatedString {
         append(text)
         if (withName && text.startsWith("Chime at")) {
-            append(" · ${m.leadMinutes} min before ")
-            if (com.prayerhome.tv.ui.hasArabic(n.name)) {
-                withStyle(SpanStyle(fontFamily = arabic, fontWeight = FontWeight.Bold, fontSize = (size * arabicScale).sp, letterSpacing = 0.sp)) { append(n.name) }
-            } else append(n.name)
+            append(" · ${n.chimeLead} min before ")
+            if (com.prayerhome.tv.ui.hasArabic(n.chimeName)) {
+                withStyle(SpanStyle(fontFamily = arabic, fontWeight = FontWeight.Bold, fontSize = (size * arabicScale).sp, letterSpacing = 0.sp)) { append(n.chimeName) }
+            } else append(n.chimeName)
         }
     }
     T(s, font, size, color, spacing = spacing)

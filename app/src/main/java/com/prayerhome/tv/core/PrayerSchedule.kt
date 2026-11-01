@@ -65,18 +65,35 @@ object PrayerSchedule {
         return PrayerDay(date, zone, today, next)
     }
 
-    /** The next moment a chime should sound ([Prefs.chimeMinutes] before a prayer), strictly after [now]. */
-    fun nextChime(prefs: Prefs, now: Instant): Pair<Instant, PrayerSlot> {
+    /** How long before [prayer] the chime sounds and the countdown turns red: Isha gets at least 20 minutes. */
+    fun leadFor(prefs: Prefs, prayer: Prayer?): Int =
+        if (prayer == Prayer.ISHA) maxOf(prefs.chimeMinutes, ISHA_LEAD) else prefs.chimeMinutes
+
+    /** The middle of the night that begins on [date]: halfway from its maghrib to the next day's fajr (the end of Isha's time). */
+    fun midnightAfter(prefs: Prefs, date: LocalDate): Instant {
+        val maghrib = slotsFor(prefs, date).first { it.prayer == Prayer.MAGHRIB }.at
+        val fajr = slotsFor(prefs, date.plusDays(1)).first { it.prayer == Prayer.FAJR }.at
+        return maghrib.plus(Duration.between(maghrib, fajr).dividedBy(2))
+    }
+
+    /** The next chime strictly after [now]: [leadFor] minutes before a prayer, or [Prefs.chimeMinutes] before midnight. */
+    fun nextChime(prefs: Prefs, now: Instant): ChimeTarget {
         val zone = zoneOf(prefs)
         val date = now.atZone(zone).toLocalDate()
-        val lead = Duration.ofMinutes(prefs.chimeMinutes.toLong())
-        for (d in 0L..2L) {
-            for (slot in slotsFor(prefs, date.plusDays(d))) {
-                if (!slot.prayer.isPrayer) continue
-                val at = slot.at.minus(lead)
-                if (at > now) return at to slot
-            }
-        }
-        error("no prayer in the next 3 days")
+        // from yesterday: last night's midnight can fall after 00:00 today
+        return (-1L..2L).flatMap { d ->
+            val day = date.plusDays(d)
+            slotsFor(prefs, day).filter { it.prayer.isPrayer }.map { ChimeTarget(it.prayer, it.at, leadFor(prefs, it.prayer)) } +
+                ChimeTarget(null, midnightAfter(prefs, day), prefs.chimeMinutes)
+        }.sortedBy { it.chimeAt }.firstOrNull { it.chimeAt > now } ?: error("no prayer in the next 3 days")
     }
+
+    private const val ISHA_LEAD = 20
+}
+
+/** A chime [leadMinutes] before [at]: a prayer, or midnight when [prayer] is null. */
+data class ChimeTarget(val prayer: Prayer?, val at: Instant, val leadMinutes: Int) {
+    val chimeAt: Instant get() = at.minus(Duration.ofMinutes(leadMinutes.toLong()))
+
+    fun label(inEnglish: Boolean) = prayer?.label(inEnglish) ?: if (inEnglish) "Midnight" else "منتصف الليل"
 }

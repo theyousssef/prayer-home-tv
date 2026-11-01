@@ -29,15 +29,17 @@ import android.view.WindowManager
 import android.widget.TextView
 import com.prayerhome.tv.App
 import com.prayerhome.tv.R
+import com.prayerhome.tv.core.ChimeTarget
 import com.prayerhome.tv.core.Prayer
 import com.prayerhome.tv.core.PrayerSchedule
 import java.time.Instant
 
 private const val TAG = "PrayerChime"
 private const val ACTION_CHIME = "com.prayerhome.tv.CHIME"
+private const val MIDNIGHT = "MIDNIGHT"
 
 object ChimeScheduler {
-    /** (Re)arms a single exact alarm for the next "N minutes before prayer" moment ([com.prayerhome.tv.core.Prefs.chimeMinutes]). */
+    /** (Re)arms a single exact alarm for the next "N minutes before prayer (or midnight)" moment ([PrayerSchedule.nextChime]). */
     fun schedule(context: Context) {
         val prefs = App.prefs(context)
         val am = context.getSystemService(AlarmManager::class.java)
@@ -45,20 +47,20 @@ object ChimeScheduler {
         am.cancel(pi)
         if (!prefs.chimeEnabled) return
 
-        val (at, slot) = PrayerSchedule.nextChime(prefs, Instant.now())
-        val fire = pendingIntent(context, slot.prayer)
-        val ms = at.toEpochMilli()
+        val next = PrayerSchedule.nextChime(prefs, Instant.now())
+        val fire = pendingIntent(context, next)
+        val ms = next.chimeAt.toEpochMilli()
         if (am.canScheduleExactAlarms()) {
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, ms, fire)
         } else {
             am.setWindow(AlarmManager.RTC_WAKEUP, ms, 30_000, fire)
         }
-        Log.i(TAG, "next chime $at for ${slot.prayer}")
+        Log.i(TAG, "next chime ${next.chimeAt} for ${next.prayer ?: "midnight"}")
     }
 
-    private fun pendingIntent(context: Context, prayer: Prayer?): PendingIntent {
+    private fun pendingIntent(context: Context, next: ChimeTarget?): PendingIntent {
         val i = Intent(context, ChimeReceiver::class.java).setAction(ACTION_CHIME)
-        if (prayer != null) i.putExtra("prayer", prayer.name)
+        if (next != null) i.putExtra("prayer", next.prayer?.name ?: MIDNIGHT).putExtra("lead", next.leadMinutes)
         return PendingIntent.getBroadcast(context, 1, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 }
@@ -68,14 +70,17 @@ class ChimeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_CHIME) {
             val prefs = App.prefs(context)
-            val prayer = intent.getStringExtra("prayer")?.let { runCatching { Prayer.valueOf(it) }.getOrNull() }
+            val name = intent.getStringExtra("prayer")
+            val prayer = name?.let { runCatching { Prayer.valueOf(it) }.getOrNull() }
+            val target = if (prayer != null || name == MIDNIGHT)
+                ChimeTarget(prayer, Instant.now(), intent.getIntExtra("lead", PrayerSchedule.leadFor(prefs, prayer))) else null
             val interactive = context.getSystemService(PowerManager::class.java).isInteractive
             val homeVisible = App.homeVisible
             // don't ring while the TV is in standby; respect "only on the home screen" when chosen
             if (prefs.chimeEnabled && interactive && (homeVisible || prefs.chimeOverApps)) {
                 val pending = goAsync()
                 ChimePlayer.play(context.applicationContext, prefs.chimeVolume) { pending.finish() }
-                if (!homeVisible && prayer != null) ChimeBanner.show(context.applicationContext, prayer)
+                if (!homeVisible && target != null) ChimeBanner.show(context.applicationContext, target)
             }
         }
         ChimeScheduler.schedule(context)
@@ -119,12 +124,12 @@ object ChimePlayer {
     }
 }
 
-/** The prayer banner: "العصر   in 10 minutes" (or "Asr in 10 minutes") over whatever app is on screen. */
+/** The prayer banner: "العصر   in 10 minutes" (or "Asr in 10 minutes", "Midnight in 10 minutes") over whatever app is on screen. */
 object ChimeBanner {
-    fun show(context: Context, prayer: Prayer) {
+    fun show(context: Context, target: ChimeTarget) {
         val prefs = App.prefs(context)
-        val name = prayer.label(prefs.english)
-        val label = SpannableString("$name   in ${prefs.chimeMinutes} minutes")
+        val name = target.label(prefs.english)
+        val label = SpannableString("$name   in ${target.leadMinutes} minutes")
         val arabic = if (prefs.english) null else runCatching { context.resources.getFont(R.font.amiri_700) }.getOrNull()
         if (arabic != null) {
             label.setSpan(TypefaceSpan(arabic), 0, name.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)

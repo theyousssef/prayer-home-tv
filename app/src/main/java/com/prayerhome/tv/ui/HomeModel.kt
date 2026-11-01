@@ -45,7 +45,10 @@ data class PrayerRow(
 data class NextView(
     val name: String,       // Arabic or English
     val time: String,       // "3:51 PM"
-    val chimeAt: String,    // "3:41 PM"
+    val chimeAt: String,    // "3:41 PM": the next chime, which after Isha is the one before midnight
+    val chimeName: String,  // what that chime announces: the next prayer, or midnight
+    val chimeLead: Int,     // and how many minutes ahead of it
+    val leadMinutes: Int,   // the next prayer's red phase (Isha's is longer)
     val groups: List<Pair<String, String>>,
     val urgent: Boolean,
     val short: String,      // "1h 53m"
@@ -70,9 +73,6 @@ class HomeModel(private val app: App) {
     /** Prayer names and Hijri date in English. */
     var english by mutableStateOf(app.prefs.english)
         private set
-    /** The chime's lead time, which is also when the countdown turns red. */
-    var leadMinutes by mutableIntStateOf(app.prefs.chimeMinutes)
-        private set
     /** A short themed message shown at the bottom of the screen (e.g. "Quran Reader isn't installed"). */
     var toast by mutableStateOf<String?>(null)
 
@@ -89,7 +89,6 @@ class HomeModel(private val app: App) {
             pinnedIds = app.prefs.pinnedApps
             themeIndex = app.prefs.themeIndex
             english = app.prefs.english
-            leadMinutes = app.prefs.chimeMinutes
         }
     }
 
@@ -128,16 +127,22 @@ class HomeModel(private val app: App) {
     }
 
     val next: NextView by derivedStateOf {
+        prefsVersion
         val d = day
-        val lead = leadMinutes
+        val lead = PrayerSchedule.leadFor(app.prefs, d.next.prayer)
         val cd = Countdown(Duration.between(now, d.next.at), lead)
+        // only moves when a chime passes, so once a minute is enough
+        val chime = PrayerSchedule.nextChime(app.prefs, Instant.ofEpochSecond(minute * 60))
         val prev = d.slots.lastOrNull { it.prayer.isPrayer && it.at <= now }?.at ?: d.next.at.minus(Duration.ofHours(9))
         val span = Duration.between(prev, d.next.at).seconds.coerceAtLeast(1)
         val done = Duration.between(prev, now).seconds
         NextView(
             name = d.next.prayer.label(english),
             time = DateText.time(d.next.at, d.zone),
-            chimeAt = DateText.time(d.next.at.minus(Duration.ofMinutes(lead.toLong())), d.zone),
+            chimeAt = DateText.time(chime.chimeAt, d.zone),
+            chimeName = chime.label(english),
+            chimeLead = chime.leadMinutes,
+            leadMinutes = lead,
             groups = cd.groups,
             urgent = cd.urgent,
             short = cd.short,
@@ -150,7 +155,7 @@ class HomeModel(private val app: App) {
         prefsVersion
         val n = next
         if (!app.prefs.chimeEnabled) "Chime off"
-        else if (n.urgent) "Chime played · under $leadMinutes minutes"
+        else if (n.urgent) "Chime played · under ${n.leadMinutes} minutes"
         else "Chime at ${n.chimeAt}"
     }
 
