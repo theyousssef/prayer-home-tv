@@ -27,6 +27,9 @@ adb -s "$TV" shell appops set com.prayerhome.tv SYSTEM_ALERT_WINDOW allow
 adb -s "$TV" shell appops set com.prayerhome.tv AUTO_START allow 2>/dev/null || true
 adb -s "$TV" shell appops set com.prayerhome.tv ASSOC_START allow 2>/dev/null || true
 
+# lets Prayer Home install its own updates without asking (Settings → Apps → Install unknown apps)
+adb -s "$TV" shell appops set com.prayerhome.tv REQUEST_INSTALL_PACKAGES allow
+
 # lets Prayer Home switch the TV's screensaver off (Settings → Screensaver)
 adb -s "$TV" shell pm grant com.prayerhome.tv android.permission.WRITE_SECURE_SETTINGS
 

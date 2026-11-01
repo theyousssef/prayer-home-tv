@@ -21,6 +21,7 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Keeps the app up to date from the GitHub releases of [repo] ("owner/name"). Once a day it asks
@@ -40,7 +41,7 @@ class SelfUpdater(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     /** Activities between onStart and onStop. */
     @Volatile private var started = 0
-    @Volatile private var installing = false
+    private val installing = AtomicBoolean(false)
 
     fun start() {
         instance = this
@@ -49,7 +50,7 @@ class SelfUpdater(
             override fun onActivityStopped(activity: Activity) { if (--started == 0) installWhenIdle() }
             override fun onActivityResumed(activity: Activity) {
                 // the last silent attempt was refused: ask through the system prompt now that we're in front
-                if (prefs.getBoolean(KEY_ASK, false) && !installing && apk.exists()) {
+                if (prefs.getBoolean(KEY_ASK, false) && !installing.get() && apk.exists()) {
                     prefs.edit().putBoolean(KEY_ASK, false).apply()
                     scope.launch { install() }
                 }
@@ -91,12 +92,11 @@ class SelfUpdater(
     }
 
     private fun installWhenIdle() {
-        if (started == 0 && !installing && apk.exists() && !busy()) scope.launch { install() }
+        if (started == 0 && !installing.get() && apk.exists() && !busy()) scope.launch { install() }
     }
 
     private fun install() {
-        if (installing) return
-        installing = true
+        if (!installing.compareAndSet(false, true)) return
         try {
             val installer = app.packageManager.packageInstaller
             installer.mySessions.forEach { runCatching { installer.abandonSession(it.sessionId) } }
@@ -122,12 +122,12 @@ class SelfUpdater(
             Log.i(TAG, "installing ${apk.length()} bytes")
         } catch (e: Exception) {
             Log.w(TAG, "install failed: $e")
-            installing = false
+            installing.set(false)
         }
     }
 
     internal fun onResult(context: Context, intent: Intent) {
-        installing = false
+        installing.set(false)
         val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         when (status) {
             PackageInstaller.STATUS_SUCCESS -> apk.delete() // usually never reached: the update ends this process
@@ -140,6 +140,7 @@ class SelfUpdater(
                     prefs.edit().putBoolean(KEY_ASK, true).apply()
                 }
             }
+            PackageInstaller.STATUS_FAILURE_ABORTED -> Log.w(TAG, "install session abandoned")
             else -> {
                 Log.w(TAG, "install failed ($status): ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)}")
                 apk.delete()

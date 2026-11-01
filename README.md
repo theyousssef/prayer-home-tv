@@ -46,6 +46,7 @@ and the TV on the same network.
    adb -s $TV shell appops set com.prayerhome.tv AUTO_START allow    # TCL TVs only
    adb -s $TV shell appops set com.prayerhome.tv ASSOC_START allow   # TCL TVs only
    adb -s $TV shell pm grant com.prayerhome.tv android.permission.WRITE_SECURE_SETTINGS
+   adb -s $TV shell appops set com.prayerhome.tv REQUEST_INSTALL_PACKAGES allow
    adb -s $TV shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
    adb -s $TV shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
    adb -s $TV shell cmd package set-home-activity com.prayerhome.tv/.MainActivity
@@ -58,7 +59,8 @@ screen, are enabled, so both are switched off. Undo below.
 lets Prayer Home switch the screensaver off (Settings → Screensaver); without it that setting does
 nothing. On TCL TVs, `AUTO_START` and `ASSOC_START` let the chime and match alarms start Prayer Home
 when Android has closed it in the background; without them TCL's app guard drops those alarms
-silently, and match banners stop until Home is opened again.
+silently, and match banners stop until Home is opened again. `REQUEST_INSTALL_PACKAGES` (*Install unknown apps*)
+lets Prayer Home install its own updates; without it the TV asks before each update.
 
 > **Wi‑Fi warning.** If your Wi‑Fi network was saved during the TV's first-time setup, switching off
 > the setup app (`setupwraith`) can make the TV forget it. Your adb connection then drops. If that
@@ -165,9 +167,9 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   stays in the All apps list too, so it can be pinned.
 - **Updates.** Once a day Prayer Home asks this repository for its latest release. When the
   release is newer than the installed version, it downloads the APK and installs it over itself
-  the next time Home isn't on screen (Android lets an app update itself without asking). Your
-  settings stay. If a TV still asks for permission, its install prompt shows the next time Home
-  opens. A release's tag is its version (`v1.6`) and it carries `prayer-home.apk`, signed with the
+  the next time Home isn't on screen, without asking once *Install unknown apps* is allowed for it
+  (the install script does that). Your settings stay. Without that permission the TV's install
+  prompt shows the next time Home opens. A release's tag is its version (`v1.6`) and it carries `prayer-home.apk`, signed with the
   same key as the installed app.
 - **Footprint.** About a 5 MB APK and about 60 MB of memory.
 
