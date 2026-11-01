@@ -9,6 +9,9 @@ A lightweight home screen (launcher) for Google TV / Android TV, built around th
   goal banners over other apps
 - highlights for a finished match: its mute button turns into a video button, and the longest
   YouTube highlights from the competitions', clubs' and broadcasters' channels play in the YouTube app
+- the standings of any match's competition: the league table, the cup's knockout tree, or both, with
+  the teams currently on the pitch in red and the panel refreshing itself every 30 seconds while a
+  match is on or about to start
 - a Quran button that opens the companion **[Quran Reader](https://github.com/theyousssef/quran-reader-tv)** app (a separate app; Prayer Home only opens it)
 - three pinned apps on Home, everything else on an Apps page
 - keeps the TV's screensaver from covering the prayer screen
@@ -85,7 +88,7 @@ adb -s $TV uninstall com.prayerhome.tv   # optional
 |---|---|
 | Home | Arrows move, OK opens. The matches panel opens the Matches page, even before any team is picked. Under *All apps* are two small buttons: **Quran** opens the Quran Reader app and **Settings** opens Settings. |
 | All apps | OK opens an app. **Hold OK** pins or unpins it (Home shows 3). |
-| Matches | All the football settings are in the header (▲ from the matches, ◀ ▶ between buttons). **Notifications** turns kick-off and goal banners on or off for every match. **Teams** opens your team list with club badges: *Add a team* searches this week's fixtures, and OK twice on a team removes it. **Refresh** reloads the match data. OK on a match mutes or unmutes just that match; a small red dot marks a match that differs from the Notifications setting. Once a match has ended its bell becomes **Highlights**: OK opens up to three YouTube highlight videos, longest first, from the competitions', clubs' and broadcasters' official channels only (beIN SPORTS, AD Sports, TOD, MBC Action, Sports United, ON Sport, and Kora Plus for Egyptian football), in Arabic and English; OK on a video plays it in the TV's YouTube app. With no teams yet, the page shows an *Add a team* button. Back closes the highlights, team list or search first. |
+| Matches | All the football settings are in the header (▲ from the matches, ◀ ▶ between buttons). **Notifications** turns kick-off and goal banners on or off for every match. **Teams** opens your team list with club badges: *Add a team* searches this week's fixtures, and OK twice on a team removes it. **Refresh** reloads the match data. OK on a match mutes or unmutes just that match; a small red dot marks a match that differs from the Notifications setting. ◀ on the **‹ Home** pill leaves the page without pressing OK. Once a match has ended its bell becomes **Highlights**: OK opens up to three YouTube highlight videos, longest first, from the competitions', clubs' and broadcasters' official channels only (beIN SPORTS, AD Sports, TOD, MBC Action, Sports United, ON Sport, and Kora Plus for Egyptian football), in Arabic and English; OK on a video plays it in the TV's YouTube app. Right of that button, the **standings** button (three podium steps) opens the competition's table or knockout tree; pressing **Right** on the match row opens it too. With no teams yet, the page shows an *Add a team* button. Back closes the highlights, standings, team list or search first. |
 | Settings | ◀ ▶ change a value, OK selects. Theme (OK opens a picker with previews), Arabic or English prayer names and Hijri date, location, calculation method, Asr, per-prayer minute offsets, Hijri ±days, chime on/off, chime time (5, 10, 15, 20 or 30 minutes before), chime volume (20–100 % of the TV's volume), banner over other apps, screensaver. A last row opens the Matches page, where the football settings are. |
 | Anywhere | Back returns to Home. The Home button always returns to Home. |
 
@@ -106,10 +109,32 @@ to the TV's antenna/satellite tuner, not the last HDMI input.
   the countdown turns red at the same moment. It plays over other apps, lowering their sound, and
   shows a small banner. Its volume is a percentage of the TV's current volume. It stays silent while
   the TV is in standby.
-- **Football.** Data comes from LiveScore's public JSON feed: free, no key, and unofficial, so it
-  could change. Fixtures from two days ago to a week ahead refresh every 2 hours. The Matches page
+- **Football.** A fresh install starts with 18 teams — Zamalek, Al Ahly, Pyramids, Real Madrid,
+  Barcelona, Atlético Madrid, Liverpool, Manchester City, Manchester United, Arsenal, Chelsea,
+  Tottenham, Bayern Munich, Paris Saint-Germain, AC Milan, Inter, Juventus and Trabzonspor — and
+  you can add or remove any of them from *Teams*. Data comes from LiveScore's public JSON feed:
+  free, no key, and unofficial, so it could change. Fixtures from two days ago to a week ahead refresh every 2 hours. The Matches page
   lists the last 48 hours and the next 24. While Home is visible and one of your teams is playing,
   the live score is checked every 15 seconds.
+- **Standings.** The podium button on a match row opens that competition's standings, from the same
+  feed: a league table (P, W, D, L, GD, PTS, with a stage picker for split seasons and cup groups),
+  a knockout bracket with connecting lines, or both, switched with Table / Bracket above the
+  content. The table is compact and dense (large names and numbers) and puts the match you opened
+  from beside it; its two teams stay highlighted in the accent colour even when they are not playing,
+  and red when they are. The UCL league phase is split after 8th and 24th. The bracket is a real
+  tree with connecting lines, and it scrolls in both directions: every round and every tie of the
+  draw is reachable with the D-pad, your tie's path to the final is lit in the accent colour, and
+  only the ties in view are composed, so a 176-tie round stays cheap. The table and the tree are
+  plain scroll surfaces — the D-pad scrolls, nothing gets selected, and your two teams are the only
+  marks. With nothing further to scroll left (or in the table, which has no horizontal scroll), ◀
+  leaves the panel for the matches; ◀ on the *‹ Matches* pill does the same, and ◀ on any page's
+  *‹ Home* pill goes home. The panel opens from a saved copy (kept for a week, and that week restarts every time the
+  competition is opened). The table is downloaded again only while a match of this competition is
+  live, around its kick-off (±5 minutes), or right after a recent result, and then every 30 seconds;
+  otherwise nothing is fetched and the saved numbers stand until the next kick-off. The small live
+  feed still ticks the minutes and keeps teams on the pitch red, and a tie that finishes while the
+  panel is open shows its final whistle with the last score. 36-team league phases get the Top 8 /
+  24 cut lines.
 - **Highlights.** For a finished match the Matches page searches YouTube for its highlights, with
   no API key: a normal results page in English and in Arabic (club names are translated, with a
   built-in list for the common clubs, and cached). A video is kept only when it comes from an

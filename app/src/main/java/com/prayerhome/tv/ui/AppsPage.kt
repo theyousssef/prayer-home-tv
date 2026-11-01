@@ -27,6 +27,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -41,7 +45,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun PageHeader(s: PageStyle, m: HomeModel, title: String, nav: Nav, backFocus: FocusRequester? = null, backLabel: String = "Home", extra: @Composable () -> Unit = {}) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Pill(s, focusRequester = backFocus, onClick = nav.home) { focused ->
+        // Left on the back pill goes back too, so a TV remote can leave the page without OK.
+        Pill(s, focusRequester = backFocus, onClick = nav.home, onLeft = nav.home) { focused ->
             Icon(Ico.BACK, if (focused) s.accent else s.muted, 22)
             Spacer(Modifier.width(10.dp))
             T(backLabel, s.body, 22, if (focused) s.text else s.muted)
@@ -74,8 +79,23 @@ fun PageHeader(s: PageStyle, m: HomeModel, title: String, nav: Nav, backFocus: F
 }
 
 @Composable
-fun Pill(s: PageStyle, focusRequester: FocusRequester? = null, onClick: () -> Unit, content: @Composable (Boolean) -> Unit) {
-    Focusable(onClick = onClick, focusRequester = focusRequester) { focused ->
+fun Pill(
+    s: PageStyle,
+    focusRequester: FocusRequester? = null,
+    onClick: () -> Unit,
+    /** When set, pressing Left on this pill does the same as OK (used by the back / Home pills). */
+    onLeft: (() -> Unit)? = null,
+    content: @Composable (Boolean) -> Unit,
+) {
+    Focusable(
+        onClick = onClick,
+        focusRequester = focusRequester,
+        onKey = { e ->
+            if (onLeft != null && e.key == Key.DirectionLeft && e.type == KeyEventType.KeyDown) {
+                onLeft(); true
+            } else false
+        },
+    ) { focused ->
         Row(
             Modifier.box(if (focused) s.surfaceFocus else s.surface, if (focused) s.accent else s.border, if (focused) 2.dp else 1.dp, RoundedCornerShape(999.dp))
                 .padding(horizontal = 20.dp, vertical = 10.dp),

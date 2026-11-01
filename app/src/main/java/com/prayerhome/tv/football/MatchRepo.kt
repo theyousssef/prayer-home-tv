@@ -55,6 +55,9 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
                 val o = JSONObject(cacheFile.readText())
                 lastFull = Instant.ofEpochSecond(o.getLong("t"))
                 lastTeamKey = o.optString("teams")
+                // Version 3 stores each match's competition and stage ids (for the standings panel), so a cache
+                // written by an older build is thrown away and downloaded again once.
+                if (o.optInt("v", 1) < CACHE_VERSION) lastFull = Instant.EPOCH
                 val a = o.getJSONArray("m")
                 _matches.value = List(a.length()) { LiveScore.fromJson(a.getJSONObject(it)) }
             }
@@ -160,7 +163,7 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
         runCatching {
             val a = JSONArray()
             _matches.value.forEach { a.put(LiveScore.toJson(it)) }
-            cacheFile.writeText(JSONObject().put("t", lastFull.epochSecond).put("teams", lastTeamKey).put("m", a).toString())
+            cacheFile.writeText(JSONObject().put("v", CACHE_VERSION).put("t", lastFull.epochSecond).put("teams", lastTeamKey).put("m", a).toString())
         }
     }
 
@@ -182,6 +185,9 @@ class MatchRepo(private val context: Context, private val prefs: Prefs) {
     }.getOrDefault(emptyList())
 
     companion object {
+        /** Bumped when the cache format changes; older caches are refetched. */
+        private const val CACHE_VERSION = 3
+
         /** Live polling starts this long before kick-off. */
         val LEAD: Duration = Duration.ofMinutes(5)
 

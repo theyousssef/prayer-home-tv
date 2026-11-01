@@ -10,6 +10,7 @@ import com.prayerhome.tv.football.Highlights
 import com.prayerhome.tv.football.Logos
 import com.prayerhome.tv.football.MatchRepo
 import com.prayerhome.tv.football.MatchWatch
+import com.prayerhome.tv.football.StandingsRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,6 +21,7 @@ class App : Application() {
     val apps by lazy { AppRepo(this) }
     val logos by lazy { Logos(this) }
     val highlights by lazy { Highlights(this) }
+    val standings by lazy { StandingsRepo(this) }
     /** For short background work started by receivers. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

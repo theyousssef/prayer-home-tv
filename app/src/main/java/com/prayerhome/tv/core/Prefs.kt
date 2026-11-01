@@ -137,13 +137,23 @@ class Prefs(context: Context) {
         // LiveScore team ids
         val DEFAULT_TEAMS = listOf(
             TeamRef("456", "Zamalek", "enet/80591.png"),
-            TeamRef("4009", "Real Madrid"),
-            TeamRef("2911", "Barcelona"),
-            TeamRef("3340", "Liverpool"),
-            TeamRef("3910", "Paris Saint-Germain"),
+            TeamRef("4009", "Real Madrid", "enet/8633.png"),
+            TeamRef("2911", "Barcelona", "enet/8634.png"),
+            TeamRef("3340", "Liverpool", "teambadge/liverpool-2024.png"),
+            TeamRef("3910", "Paris Saint-Germain", "enet/9847.png"),
             TeamRef("12633", "Manchester City", "enet/8456.png"),
-            TeamRef("2773", "Arsenal"),
-            TeamRef("2940", "Bayern Munich"),
+            TeamRef("2773", "Arsenal", "enet/9825.png"),
+            TeamRef("2940", "Bayern Munich", "enet/9823.png"),
+            TeamRef("2860", "Al Ahly", "enet/101745.png"),
+            TeamRef("2881", "Chelsea", "teambadge/chelsea.png"),
+            TeamRef("2810", "Manchester United", "enet/10260.png"),
+            TeamRef("378", "Trabzonspor", "enet/9752.png"),
+            TeamRef("4192", "Pyramids FC", "enet/517894.png"),
+            TeamRef("3339", "Tottenham Hotspur", "teambadge/tottenham-hotspur-2024.png"),
+            TeamRef("2912", "Atletico Madrid", "teambadge/atletico-madrid-2024.png"),
+            TeamRef("2988", "AC Milan", "enet/8564.png"),
+            TeamRef("4238", "Juventus", "enet/9885.png"),
+            TeamRef("3415", "Inter", "enet/8636.png"),
         )
     }
 }
