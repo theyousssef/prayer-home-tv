@@ -86,14 +86,22 @@ object PrayerSchedule {
         }
     }
 
-    /** The next chime strictly after [now]: [leadFor] minutes before a prayer, or [Prefs.chimeMinutes] before midnight. */
+    /** (Fajr, sunrise) of today while [now] is between the two (Fajr's time running out); else null. */
+    fun sunriseAhead(prefs: Prefs, now: Instant): Pair<Instant, Instant>? {
+        val slots = slotsFor(prefs, now.atZone(zoneOf(prefs)).toLocalDate())
+        val fajr = slots.first { it.prayer == Prayer.FAJR }.at
+        val sunrise = slots.first { it.prayer == Prayer.SUNRISE }.at
+        return (fajr to sunrise).takeIf { now >= fajr && now < sunrise }
+    }
+
+    /** The next chime strictly after [now]: [leadFor] minutes before a prayer or sunrise, or [Prefs.chimeMinutes] before midnight. */
     fun nextChime(prefs: Prefs, now: Instant): ChimeTarget {
         val zone = zoneOf(prefs)
         val date = now.atZone(zone).toLocalDate()
         // from yesterday: last night's midnight can fall after 00:00 today
         return (-1L..2L).flatMap { d ->
             val day = date.plusDays(d)
-            slotsFor(prefs, day).filter { it.prayer.isPrayer }.map { ChimeTarget(it.prayer, it.at, leadFor(prefs, it.prayer)) } +
+            slotsFor(prefs, day).map { ChimeTarget(it.prayer, it.at, leadFor(prefs, it.prayer)) } +
                 ChimeTarget(null, midnightAfter(prefs, day), prefs.chimeMinutes)
         }.sortedBy { it.chimeAt }.firstOrNull { it.chimeAt > now } ?: error("no prayer in the next 3 days")
     }
@@ -101,7 +109,7 @@ object PrayerSchedule {
     private const val ISHA_LEAD = 20
 }
 
-/** A chime [leadMinutes] before [at]: a prayer, or midnight when [prayer] is null. */
+/** A chime [leadMinutes] before [at]: a prayer (or sunrise), or midnight when [prayer] is null. */
 data class ChimeTarget(val prayer: Prayer?, val at: Instant, val leadMinutes: Int) {
     val chimeAt: Instant get() = at.minus(Duration.ofMinutes(leadMinutes.toLong()))
 

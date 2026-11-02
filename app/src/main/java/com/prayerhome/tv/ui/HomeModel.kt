@@ -44,11 +44,11 @@ data class PrayerRow(
 
 @Immutable
 data class NextView(
-    val heading: String,    // "NEXT PRAYER", or what the midnight countdown is
+    val heading: String,    // "NEXT PRAYER", or what the midnight / sunrise countdown is
     val name: String,       // Arabic or English
     val time: String,       // "3:51 PM"
-    val chimeAt: String,    // "3:41 PM": the next chime, which after Isha is the one before midnight
-    val chimeName: String,  // what that chime announces: the next prayer, or midnight
+    val chimeAt: String,    // "3:41 PM": the next chime, which after Isha is the one before midnight, after Fajr before sunrise
+    val chimeName: String,  // what that chime announces: the next prayer, sunrise or midnight
     val chimeLead: Int,     // and how many minutes ahead of it
     val leadMinutes: Int,   // the next prayer's red phase (Isha's is longer)
     val groups: List<Pair<String, String>>,
@@ -134,17 +134,20 @@ class HomeModel(private val app: App) {
         // only moves when a chime passes, so once a minute is enough
         val at = Instant.ofEpochSecond(minute * 60)
         val chime = PrayerSchedule.nextChime(app.prefs, at)
-        // from Isha until the middle of the night, the countdown is to midnight instead of Fajr
+        // from Isha until the middle of the night, the countdown is to midnight instead of Fajr;
+        // from Fajr until sunrise, to sunrise instead of Dhuhr
         val night = PrayerSchedule.midnightAhead(app.prefs, at)?.takeIf { now < it.second }
+        val dawn = PrayerSchedule.sunriseAhead(app.prefs, at)?.takeIf { now < it.second }
         val target = night?.let { ChimeTarget(null, it.second, app.prefs.chimeMinutes) }
+            ?: dawn?.let { ChimeTarget(Prayer.SUNRISE, it.second, PrayerSchedule.leadFor(app.prefs, Prayer.SUNRISE)) }
             ?: ChimeTarget(d.next.prayer, d.next.at, PrayerSchedule.leadFor(app.prefs, d.next.prayer))
         val lead = target.leadMinutes
         val cd = Countdown(Duration.between(now, target.at), lead)
-        val prev = night?.first ?: d.slots.lastOrNull { it.prayer.isPrayer && it.at <= now }?.at ?: d.next.at.minus(Duration.ofHours(9))
+        val prev = (night ?: dawn)?.first ?: d.slots.lastOrNull { it.prayer.isPrayer && it.at <= now }?.at ?: d.next.at.minus(Duration.ofHours(9))
         val span = Duration.between(prev, target.at).seconds.coerceAtLeast(1)
         val done = Duration.between(prev, now).seconds
         NextView(
-            heading = if (night != null) "ISHA TIME ENDS" else "NEXT PRAYER",
+            heading = if (night != null) "ISHA TIME ENDS" else if (dawn != null) "FAJR TIME ENDS" else "NEXT PRAYER",
             name = target.label(english),
             time = DateText.time(target.at, d.zone),
             chimeAt = DateText.time(chime.chimeAt, d.zone),

@@ -111,7 +111,7 @@ fun SettingsPage(s: PageStyle, m: HomeModel, nav: Nav) {
         })
         add(Action("tz", "Timezone & daylight saving", "${m.day.zone.id} · follows the TV's tz database") { })
 
-        add(Header("CHIME · ${p.chimeMinutes} MINUTES BEFORE EACH PRAYER AND MIDNIGHT"))
+        add(Header("CHIME · ${p.chimeMinutes} MINUTES BEFORE EACH PRAYER, SUNRISE AND MIDNIGHT"))
         add(Choice("chime", "Chime", if (p.chimeEnabled) "On" else "Off") { _ -> p.chimeEnabled = !p.chimeEnabled; changed(true) })
         add(Choice("lead", "Chime time · also when the countdown turns red", "${p.chimeMinutes} min before each prayer · Isha ${PrayerSchedule.leadFor(p, Prayer.ISHA)}") { d ->
             p.chimeMinutes = cycle(Prefs.CHIME_CHOICES, p.chimeMinutes, d); changed(true)

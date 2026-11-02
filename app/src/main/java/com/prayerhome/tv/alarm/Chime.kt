@@ -39,7 +39,7 @@ private const val ACTION_CHIME = "com.prayerhome.tv.CHIME"
 private const val MIDNIGHT = "MIDNIGHT"
 
 object ChimeScheduler {
-    /** (Re)arms a single exact alarm for the next "N minutes before prayer (or midnight)" moment ([PrayerSchedule.nextChime]). */
+    /** (Re)arms a single exact alarm for the next "N minutes before prayer (or sunrise, midnight)" moment ([PrayerSchedule.nextChime]). */
     fun schedule(context: Context) {
         val prefs = App.prefs(context)
         val am = context.getSystemService(AlarmManager::class.java)
@@ -124,7 +124,7 @@ object ChimePlayer {
     }
 }
 
-/** The prayer banner: "العصر   in 10 minutes" (or "Asr in 10 minutes", "Midnight in 10 minutes") over whatever app is on screen. */
+/** The prayer banner: "العصر   in 10 minutes" (or "Asr in 10 minutes", "Sunrise in 10 minutes", "Midnight in 10 minutes") over whatever app is on screen. */
 object ChimeBanner {
     fun show(context: Context, target: ChimeTarget) {
         val prefs = App.prefs(context)
